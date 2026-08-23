@@ -2,7 +2,7 @@
 
 > **Đề tài:** Xây dựng hệ thống thương mại điện tử tích hợp trợ lý AI hỗ trợ tư vấn sản phẩm cho **LaptopWorld**.
 > **Loại:** Đồ án tốt nghiệp.
-> **Cập nhật:** 2026-08-21 (Sprint 9F hoàn tất + polish UX round 1 — 6/8 sprint Phase 9 xong; đang làm Sprint 9G-perm phân quyền chi tiết — **Bước 0 + 1 + 2 xong**, còn Bước 3 (Test E2E)).
+> **Cập nhật:** 2026-08-23 (Gộp backend + frontend vào cùng git repo [Graduation-Nh-m2](https://github.com/huymonsterhuman-eng/Graduation-Nh-m2); Sprint 9F hoàn tất + polish UX round 1 — 6/8 sprint Phase 9 xong; đang làm Sprint 9G-perm phân quyền chi tiết — **Bước 0 + 1 + 2 xong**, còn Bước 3 (Test E2E)).
 
 ---
 
@@ -70,10 +70,11 @@ Xây dựng một website thương mại điện tử hoàn chỉnh dành cho c�
 
 ## 3. Cấu trúc thư mục dự án
 
-Dự án gồm **2 thư mục ngang cấp**:
+Từ 2026-08-23 backend + frontend đã được gộp vào **cùng một git repo** ([github.com/huymonsterhuman-eng/Graduation-Nh-m2](https://github.com/huymonsterhuman-eng/Graduation-Nh-m2)):
 
 ```
-D:\FINALYEAR\GRADUATION\
+D:\FINALYEAR\GRADUATION\LaptopWorld_project\   ← git repo root
+├── .gitignore                    ← Ignore Report/, node_modules/, target/, uploads/, *-local.properties
 ├── LaptopWorld_project\          ← Spring Boot backend
 │   ├── ai-docs\                  ← Tài liệu dự án (đọc trước khi làm)
 │   │   ├── overview.md           ← File này
@@ -122,9 +123,9 @@ D:\FINALYEAR\GRADUATION\
 │           ├── db\migration\     ← Flyway V1-V17 (auto chạy khi boot)
 │           └── templates\        ← Thymeleaf email templates
 │
-└── laptopworld-web\              ← React + Vite frontend user site
-    ├── package.json
-    ├── vite.config.ts            ← Proxy /api + /uploads → localhost:8080
+├── laptopworld-web\              ← React + Vite frontend user site (đã gộp vào repo 2026-08-23)
+│   ├── package.json
+│   ├── vite.config.ts            ← Proxy /api + /uploads → localhost:8080
     ├── tailwind.config.js        ← darkMode: 'class'
     ├── components.json           ← shadcn config
     ├── index.html
@@ -194,7 +195,7 @@ Boot xong: Flyway auto chạy 17 migrations, DataInitializer seed admin/admin123
 
 ### 4.2. Frontend user site
 ```bash
-cd D:\FINALYEAR\GRADUATION\laptopworld-web
+cd D:\FINALYEAR\GRADUATION\LaptopWorld_project\laptopworld-web
 npm install       # lần đầu
 npm run dev       # → http://localhost:5173
 ```
