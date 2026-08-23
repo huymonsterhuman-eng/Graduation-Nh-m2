@@ -1,0 +1,37 @@
+# Build / IDE
+target/
+build/
+.mvn/wrapper/maven-wrapper.jar
+.idea/
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+*.iml
+*.iws
+*.ipr
+
+# Local secret overrides — KHÔNG commit
+application-local.properties
+application-*-local.properties
+.env
+.env.*
+!.env.example
+
+# Runtime
+uploads/
+logs/
+*.log
+
+# Node (frontend nếu thêm sau)
+node_modules/
+dist/
+.pnpm-store/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Office temp lock files
+~$*

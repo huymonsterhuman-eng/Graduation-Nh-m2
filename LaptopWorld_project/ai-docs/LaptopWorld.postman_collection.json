@@ -1,0 +1,188 @@
+{
+  "info": {
+    "name": "LaptopWorld API",
+    "description": "Full API collection cho backend LaptopWorld — Phase 2 (Auth) + Phase 3 (Catalog + Media) + Phase 4 (Address + Cart + Voucher + Order).\n\n**Cách dùng:**\n1. Import → sửa collection var `email`, `password`, `filePathToUpload`.\n2. Chạy `Auth / Login as admin` hoặc `Auth / Login as user` — token tự lưu vào `accessToken` + `refreshToken`.\n3. Các request khác dùng token đã lưu.\n4. Order checkout: chạy sau khi đã có Address + có SP trong Cart.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "laptopworld-full-collection"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" },
+    { "key": "email", "value": "your_email@gmail.com", "type": "string" },
+    { "key": "username", "value": "user1", "type": "string" },
+    { "key": "password", "value": "Passw0rd!", "type": "string" },
+    { "key": "fullName", "value": "Người Dùng Test", "type": "string" },
+    { "key": "verifyToken", "value": "", "type": "string" },
+    { "key": "resetToken", "value": "", "type": "string" },
+    { "key": "newPassword", "value": "NewPass123!", "type": "string" },
+    { "key": "accessToken", "value": "", "type": "string" },
+    { "key": "refreshToken", "value": "", "type": "string" },
+    { "key": "orderCode", "value": "", "type": "string" },
+    { "key": "orderId", "value": "", "type": "string" },
+    { "key": "filePathToUpload", "value": "C:/Users/huymo/Pictures/test.jpg", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "01. Auth",
+      "item": [
+        { "name": "Register", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/auth/register", "body": { "mode": "raw", "raw": "{\n  \"username\": \"{{username}}\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"fullName\": \"{{fullName}}\"\n}" }}},
+        { "name": "Resend verification", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/auth/resend-verification", "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" }}},
+        { "name": "Verify email", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/auth/verify-email", "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{verifyToken}}\"\n}" }}},
+        {
+          "name": "Login (auto-save token)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "const j = pm.response.json();",
+            "if (j.success) {",
+            "  pm.collectionVariables.set('accessToken', j.data.accessToken);",
+            "  pm.collectionVariables.set('refreshToken', j.data.refreshToken);",
+            "  console.log('Logged in as ' + j.data.user.username + ' roles=' + j.data.user.roles);",
+            "}"
+          ]}}],
+          "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/auth/login", "body": { "mode": "raw", "raw": "{\n  \"usernameOrEmail\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}" }}
+        },
+        {
+          "name": "Login as admin",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "const j = pm.response.json();",
+            "if (j.success) {",
+            "  pm.collectionVariables.set('accessToken', j.data.accessToken);",
+            "  pm.collectionVariables.set('refreshToken', j.data.refreshToken);",
+            "}"
+          ]}}],
+          "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/auth/login", "body": { "mode": "raw", "raw": "{\n  \"usernameOrEmail\": \"admin\",\n  \"password\": \"admin123\"\n}" }}
+        },
+        { "name": "Me", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/auth/me" }},
+        {
+          "name": "Refresh token",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "const j = pm.response.json();",
+            "if (j.success) pm.collectionVariables.set('accessToken', j.data.accessToken);"
+          ]}}],
+          "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/auth/refresh", "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" }}
+        },
+        { "name": "Logout", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/auth/logout", "body": { "mode": "raw", "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}" }}},
+        { "name": "Forgot password", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/auth/forgot-password", "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{email}}\"\n}" }}},
+        { "name": "Reset password", "request": { "method": "POST", "header": [{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/auth/reset-password", "body": { "mode": "raw", "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"newPassword\": \"{{newPassword}}\"\n}" }}}
+      ]
+    },
+    {
+      "name": "02. Catalog — Categories",
+      "item": [
+        { "name": "GET tree", "request": { "method": "GET", "url": "{{baseUrl}}/api/catalog/categories/tree" }},
+        { "name": "GET list active", "request": { "method": "GET", "url": "{{baseUrl}}/api/catalog/categories" }},
+        { "name": "GET by slug", "request": { "method": "GET", "url": "{{baseUrl}}/api/catalog/categories/laptop" }},
+        { "name": "[Admin] list all", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/categories" }},
+        { "name": "[Admin] create", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/categories", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Danh mục mới\",\n  \"description\": \"Test\"\n}" }}},
+        { "name": "[Admin] update", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/categories/13", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Danh mục sửa\",\n  \"isActive\": true\n}" }}},
+        { "name": "[Admin] delete", "request": { "method": "DELETE", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/categories/13" }}
+      ]
+    },
+    {
+      "name": "03. Catalog — Brands",
+      "item": [
+        { "name": "GET list active", "request": { "method": "GET", "url": "{{baseUrl}}/api/catalog/brands" }},
+        { "name": "GET by slug", "request": { "method": "GET", "url": "{{baseUrl}}/api/catalog/brands/apple" }},
+        { "name": "[Admin] list all", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/brands" }},
+        { "name": "[Admin] create", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/brands", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Acer\",\n  \"description\": \"Hãng máy tính Đài Loan\"\n}" }}},
+        { "name": "[Admin] update", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/brands/27", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Acer Vietnam\",\n  \"isActive\": true\n}" }}},
+        { "name": "[Admin] delete", "request": { "method": "DELETE", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/brands/27" }}
+      ]
+    },
+    {
+      "name": "04. Catalog — Collections",
+      "item": [
+        { "name": "GET home", "request": { "method": "GET", "url": "{{baseUrl}}/api/catalog/collections/home" }},
+        { "name": "GET by slug", "request": { "method": "GET", "url": "{{baseUrl}}/api/catalog/collections/deal-hot" }},
+        { "name": "[Admin] list all", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/collections" }},
+        { "name": "[Admin] create", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/collections", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Deal HOT tháng 8\",\n  \"showOnHome\": true,\n  \"sortOrder\": 1\n}" }}},
+        { "name": "[Admin] update", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/collections/1", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Deal HOT tháng 9\",\n  \"showOnHome\": true\n}" }}},
+        { "name": "[Admin] delete", "request": { "method": "DELETE", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/collections/1" }},
+        { "name": "[Admin] add products", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/collections/1/products", "body": { "mode": "raw", "raw": "[1, 71, 91]" }}},
+        { "name": "[Admin] remove product", "request": { "method": "DELETE", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/collections/1/products/91" }}
+      ]
+    },
+    {
+      "name": "05. Catalog — Products",
+      "item": [
+        { "name": "GET search/filter", "request": { "method": "GET", "url": "{{baseUrl}}/api/catalog/products?keyword=iphone&categoryId=1&minPrice=15000000&maxPrice=30000000&page=0&size=10&sort=createdAt,desc" }},
+        { "name": "GET by slug (increment view)", "request": { "method": "GET", "url": "{{baseUrl}}/api/catalog/products/samsung-galaxy-s23-ultra" }},
+        { "name": "GET related", "request": { "method": "GET", "url": "{{baseUrl}}/api/catalog/products/1/related?limit=8" }},
+        { "name": "[Admin] list all", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/products?page=0&size=10" }},
+        { "name": "[Admin] detail", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/products/1" }},
+        { "name": "[Admin] create", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/products", "body": { "mode": "raw", "raw": "{\n  \"name\": \"MSI Katana 15 Test\",\n  \"sku\": \"MSI-TEST-001\",\n  \"shortDescription\": \"Laptop gaming demo\",\n  \"price\": 25990000,\n  \"salePrice\": 23990000,\n  \"brandId\": 9,\n  \"categoryId\": 2,\n  \"specs\": {\n    \"cpu\": \"i7-13620H\",\n    \"ram\": \"16GB DDR5\",\n    \"ssd\": \"512GB\"\n  },\n  \"stock\": 10,\n  \"isFeatured\": true,\n  \"images\": [\n    { \"path\": \"/uploads/products/legacy/msi-test.jpg\", \"isPrimary\": true }\n  ]\n}" }}},
+        { "name": "[Admin] update", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/products/1", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Samsung Galaxy S23 Ultra (Update)\",\n  \"price\": 25990000,\n  \"stock\": 20,\n  \"categoryId\": 1,\n  \"brandId\": 1\n}" }}},
+        { "name": "[Admin] soft delete", "request": { "method": "DELETE", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/products/999" }}
+      ]
+    },
+    {
+      "name": "06. Media Upload",
+      "item": [
+        { "name": "[Admin] upload image", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/media/upload", "body": { "mode": "formdata", "formdata": [
+          { "key": "file", "type": "file", "src": "{{filePathToUpload}}" },
+          { "key": "folder", "value": "products", "type": "text" }
+        ]}}}
+      ]
+    },
+    {
+      "name": "07. Address (User)",
+      "item": [
+        { "name": "GET my addresses", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/addresses" }},
+        { "name": "Create address", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/addresses", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Huy Mo\",\n  \"phone\": \"0912345678\",\n  \"address\": \"123 Nguyễn Văn Cừ\",\n  \"ward\": \"Phường 4\",\n  \"district\": \"Quận 5\",\n  \"province\": \"TP.HCM\"\n}" }}},
+        { "name": "Update address", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/addresses/1", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Huy Mo (Update)\",\n  \"phone\": \"0912345678\",\n  \"address\": \"456 Đường mới\",\n  \"province\": \"TP.HCM\"\n}" }}},
+        { "name": "Delete address", "request": { "method": "DELETE", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/addresses/2" }},
+        { "name": "Set default", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/addresses/1/set-default" }}
+      ]
+    },
+    {
+      "name": "08. Cart (User)",
+      "item": [
+        { "name": "GET my cart", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/cart" }},
+        { "name": "Add item (Samsung S23 x2)", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/cart/items", "body": { "mode": "raw", "raw": "{\n  \"productId\": 1,\n  \"quantity\": 2\n}" }}},
+        { "name": "Add item (ASUS ROG x1)", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/cart/items", "body": { "mode": "raw", "raw": "{\n  \"productId\": 71,\n  \"quantity\": 1\n}" }}},
+        { "name": "Update quantity", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/cart/items/1", "body": { "mode": "raw", "raw": "{\n  \"quantity\": 3\n}" }}},
+        { "name": "Remove item", "request": { "method": "DELETE", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/cart/items/2" }},
+        { "name": "Clear cart", "request": { "method": "DELETE", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/cart" }}
+      ]
+    },
+    {
+      "name": "09. Voucher",
+      "item": [
+        { "name": "[Admin] list all", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/vouchers" }},
+        { "name": "[Admin] create fixed 500k", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/vouchers", "body": { "mode": "raw", "raw": "{\n  \"code\": \"WELCOME500\",\n  \"name\": \"Voucher chào mừng\",\n  \"type\": \"fixed\",\n  \"discountAmount\": 500000,\n  \"minOrderValue\": 5000000,\n  \"expiresAt\": \"2027-01-01T00:00:00Z\",\n  \"isActive\": true\n}" }}},
+        { "name": "[Admin] create percent 10% max 2tr", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/vouchers", "body": { "mode": "raw", "raw": "{\n  \"code\": \"SALE10\",\n  \"name\": \"Giảm 10% max 2 triệu\",\n  \"type\": \"percent\",\n  \"discountAmount\": 10,\n  \"minOrderValue\": 20000000,\n  \"maxDiscount\": 2000000,\n  \"expiresAt\": \"2027-01-01T00:00:00Z\",\n  \"isActive\": true\n}" }}},
+        { "name": "[Admin] update", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/vouchers/1", "body": { "mode": "raw", "raw": "{\n  \"code\": \"WELCOME500\",\n  \"name\": \"Voucher chào mừng — update\",\n  \"type\": \"fixed\",\n  \"discountAmount\": 500000,\n  \"minOrderValue\": 5000000,\n  \"expiresAt\": \"2027-06-01T00:00:00Z\",\n  \"isActive\": true\n}" }}},
+        { "name": "[Admin] delete", "request": { "method": "DELETE", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/vouchers/999" }},
+        { "name": "GET available (user)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/vouchers/available" }},
+        { "name": "GET my saved (user)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/vouchers/mine" }},
+        { "name": "Save voucher (user)", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/vouchers/WELCOME500/save" }},
+        { "name": "Check voucher (preview discount)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/vouchers/SALE10/check?subtotal=25000000" }}
+      ]
+    },
+    {
+      "name": "10. Order + Checkout",
+      "item": [
+        {
+          "name": "Checkout (auto-save orderCode)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "const j = pm.response.json();",
+            "if (j.success) {",
+            "  pm.collectionVariables.set('orderCode', j.data.code);",
+            "  pm.collectionVariables.set('orderId', j.data.id);",
+            "  console.log('Order created:', j.data.code, 'total=', j.data.total);",
+            "}"
+          ]}}],
+          "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/checkout", "body": { "mode": "raw", "raw": "{\n  \"addressId\": 1,\n  \"paymentMethod\": \"cod\",\n  \"voucherCode\": \"SALE10\",\n  \"shippingMethod\": \"standard\",\n  \"shippingFee\": 30000,\n  \"customerNote\": \"Giao giờ hành chính\"\n}" }}
+        },
+        { "name": "My orders (list)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/orders?page=0&size=20" }},
+        { "name": "My orders by status", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/orders?status=pending" }},
+        { "name": "My order detail (by code)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/orders/{{orderCode}}" }},
+        { "name": "Cancel my order", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/orders/{{orderCode}}/cancel" }},
+        { "name": "[Admin] list orders", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/orders?page=0&size=20" }},
+        { "name": "[Admin] search orders by keyword", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/orders?keyword=ORD-2026&status=pending" }},
+        { "name": "[Admin] order detail", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/orders/{{orderId}}" }},
+        { "name": "[Admin] confirm order", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/orders/{{orderId}}/status", "body": { "mode": "raw", "raw": "{\n  \"status\": \"confirmed\",\n  \"adminNote\": \"Đã liên hệ khách xác nhận\"\n}" }}},
+        { "name": "[Admin] ship order + tracking", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/orders/{{orderId}}/status", "body": { "mode": "raw", "raw": "{\n  \"status\": \"shipping\",\n  \"trackingNumber\": \"GHN-123456789\"\n}" }}},
+        { "name": "[Admin] mark delivered", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/orders/{{orderId}}/status", "body": { "mode": "raw", "raw": "{\n  \"status\": \"delivered\"\n}" }}}
+      ]
+    }
+  ]
+}
