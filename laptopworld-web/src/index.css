@@ -1,0 +1,104 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 47.4% 11.2%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+
+    --primary: 221 83% 53%;                /* xanh dương LaptopWorld */
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221 83% 53%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222 47% 8%;
+    --foreground: 210 40% 96%;
+
+    --card: 222 45% 11%;
+    --card-foreground: 210 40% 96%;
+
+    --popover: 222 45% 11%;
+    --popover-foreground: 210 40% 96%;
+
+    --primary: 221 83% 60%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 63% 45%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 33% 22%;
+    --input: 217 33% 22%;
+    --ring: 221 83% 60%;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground; }
+}
+
+/* Admin sidebar nav — bypass Tailwind arbitrary opacity/CSS-var edge cases
+   để text luôn hiện đúng trong cả 2 mode. */
+.admin-nav-link {
+  color: rgb(51 65 85);            /* slate-700 */
+}
+.admin-nav-link:hover {
+  color: rgb(15 23 42);            /* slate-900 */
+  background-color: hsl(var(--accent));
+}
+.dark .admin-nav-link {
+  color: rgb(203 213 225);         /* slate-300 */
+}
+.dark .admin-nav-link:hover {
+  color: rgb(248 250 252);         /* slate-50 */
+}
+.admin-nav-link.is-active,
+.admin-nav-link.is-active:hover {
+  background-color: hsl(var(--primary));
+  color: #ffffff;
+}
+
+/* Section header (SẢN PHẨM / KINH DOANH / ...) — nổi bật hơn */
+.admin-nav-group-title {
+  color: rgb(15 23 42);            /* slate-900 */
+  font-weight: 700;
+  font-size: 0.75rem;              /* 12px */
+  letter-spacing: 0.08em;
+}
+.dark .admin-nav-group-title {
+  color: rgb(226 232 240);         /* slate-200 */
+}

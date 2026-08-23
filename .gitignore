@@ -35,3 +35,6 @@ Thumbs.db
 
 # Office temp lock files
 ~$*
+
+# Báo cáo (không commit)
+Report/
