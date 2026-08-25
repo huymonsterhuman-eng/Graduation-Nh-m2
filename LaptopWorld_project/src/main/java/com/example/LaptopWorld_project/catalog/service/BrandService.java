@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -30,7 +32,20 @@ public class BrandService {
 
     @Transactional(readOnly = true)
     public List<BrandDto> findAll() {
-        return brandMapper.toDtoList(brandRepository.findAll());
+        List<Brand> brands = brandRepository.findAll();
+        Map<Long, Long> countMap = productRepository.countGroupByBrandId().stream()
+                .collect(Collectors.toMap(
+                        row -> ((Number) row[0]).longValue(),
+                        row -> ((Number) row[1]).longValue()));
+        return brands.stream()
+                .map(b -> withProductCount(brandMapper.toDto(b), countMap.getOrDefault(b.getId(), 0L)))
+                .toList();
+    }
+
+    private BrandDto withProductCount(BrandDto dto, long count) {
+        return new BrandDto(dto.id(), dto.name(), dto.slug(), dto.logo(),
+                dto.description(), dto.isActive(),
+                dto.createdAt(), dto.updatedAt(), count);
     }
 
     @Transactional(readOnly = true)
@@ -59,8 +74,15 @@ public class BrandService {
     public BrandDto update(Long id, BrandRequest req) {
         Brand entity = getByIdOrThrow(id);
         String slug = normalizeSlug(req.slug(), req.name());
-        if (!slug.equals(entity.getSlug()) && brandRepository.existsBySlug(slug)) {
-            throw new BusinessException("SLUG_TAKEN", "Slug đã tồn tại: " + slug);
+        if (!slug.equals(entity.getSlug())) {
+            if (productRepository.existsByBrandId(id)) {
+                throw new BusinessException("SLUG_LOCKED_HAS_PRODUCTS",
+                        "Không thể đổi slug: thương hiệu này đang có sản phẩm. " +
+                        "Đổi slug sẽ làm gãy URL /thuong-hieu/... cũ.");
+            }
+            if (brandRepository.existsBySlug(slug)) {
+                throw new BusinessException("SLUG_TAKEN", "Slug đã tồn tại: " + slug);
+            }
         }
         applyRequest(entity, req, slug);
         return brandMapper.toDto(brandRepository.save(entity));

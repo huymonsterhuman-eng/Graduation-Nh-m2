@@ -10,5 +10,6 @@ public record BrandDto(
         String description,
         boolean isActive,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt
+        OffsetDateTime updatedAt,
+        long productCount
 ) {}

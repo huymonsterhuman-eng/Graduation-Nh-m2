@@ -16,5 +16,11 @@ public record BannerRequest(
 
         Integer sortOrder,   // null = 0
 
-        Boolean isActive     // null = true (khi create); giữ nguyên khi update
+        Boolean isActive,    // null = true (khi create); giữ nguyên khi update
+
+        @Size(max = 50)
+        String position,     // null = 'hero_carousel' (khi create); giữ nguyên khi update
+
+        @Size(max = 10)
+        String imageFit      // 'cover' | 'contain'. Null/khác 'contain' = 'cover'
 ) {}

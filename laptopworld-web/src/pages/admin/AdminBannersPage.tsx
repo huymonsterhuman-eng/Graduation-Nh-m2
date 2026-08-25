@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Images, Plus, Pencil, Trash2, Search, ExternalLink } from 'lucide-react'
+import { Images, Plus, Pencil, Trash2, Search, ExternalLink, Crop as CropIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,15 +11,54 @@ import { AdminTable, type AdminColumn } from '@/components/admin/common/AdminTab
 import { FormDialog } from '@/components/admin/common/FormDialog'
 import { ConfirmDialog } from '@/components/admin/common/ConfirmDialog'
 import { MediaUploader } from '@/components/admin/common/MediaUploader'
+import { ImageCropperDialog } from '@/components/admin/common/ImageCropperDialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   useAdminBanners, useCreateBanner, useUpdateBanner, useDeleteBanner,
   type BannerInput,
 } from '@/hooks/api/useBanners'
-import type { Banner } from '@/types/api'
+import { BANNER_POSITIONS, type Banner } from '@/types/api'
 import { productImageSrc } from '@/lib/format'
 
 function emptyForm(): BannerInput {
-  return { title: '', image: '', link: '', sortOrder: 0, isActive: true }
+  return { title: '', image: '', link: '', sortOrder: 0, isActive: true, position: 'hero_carousel' }
+}
+
+function positionLabel(value?: string | null): string {
+  if (!value) return 'Carousel chính (đầu trang)'
+  return BANNER_POSITIONS.find((p) => p.value === value)?.label ?? value
+}
+
+function positionBadgeClass(value?: string | null): string {
+  switch (value) {
+    case 'sidebar_phone':
+      return 'bg-sky-500/15 text-sky-700 dark:text-sky-300'
+    case 'sidebar_laptop':
+      return 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+    default:
+      return 'bg-primary/15 text-primary'
+  }
+}
+
+/** Tỷ lệ crop khuyến nghị theo slot (width / height). */
+function aspectForPosition(position?: string | null): number {
+  switch (position) {
+    case 'sidebar_phone':
+    case 'sidebar_laptop':
+      // Khung sidebar stretch cao bằng grid SP 2 hàng → rất dọc.
+      // 1:3 khớp thực tế ~240×720px trên desktop.
+      return 1 / 3
+    case 'hero_carousel':
+    default:
+      return 16 / 9     // khung ngang carousel
+  }
+}
+
+function aspectLabel(position?: string | null): string {
+  const a = aspectForPosition(position)
+  if (Math.abs(a - 1 / 3) < 0.01) return '1:3 (dọc dài, khớp sidebar)'
+  if (Math.abs(a - 16 / 9) < 0.01) return '16:9 (ngang)'
+  return a.toFixed(2)
 }
 
 export function AdminBannersPage() {
@@ -32,6 +71,10 @@ export function AdminBannersPage() {
   const [editing, setEditing] = useState<Banner | null>(null)
   const [form, setForm] = useState<BannerInput>(emptyForm())
   const [keyword, setKeyword] = useState('')
+
+  // Cropper state
+  const [cropperOpen, setCropperOpen] = useState(false)
+  const [cropperImageSrc, setCropperImageSrc] = useState<string>('')
 
   const filtered = useMemo(() => {
     if (!data) return []
@@ -56,8 +99,24 @@ export function AdminBannersPage() {
       link: b.link ?? '',
       sortOrder: b.sortOrder,
       isActive: b.isActive,
+      position: b.position ?? 'hero_carousel',
     })
     setDialogOpen(true)
+  }
+
+  const openCropper = (imagePath: string) => {
+    if (!imagePath) return
+    setCropperImageSrc(productImageSrc(imagePath))
+    setCropperOpen(true)
+  }
+
+  const handleImageUploaded = (path: string | null) => {
+    setForm({ ...form, image: path ?? '' })
+    // Auto mở cropper ngay sau khi upload lần đầu — để admin cắt vừa khung.
+    if (path) {
+      // Delay chút cho state kịp update
+      setTimeout(() => openCropper(path), 100)
+    }
   }
 
   const handleSubmit = async () => {
@@ -124,6 +183,14 @@ export function AdminBannersPage() {
             </a>
           )}
         </div>
+      ),
+    },
+    {
+      key: 'position', header: 'Vị trí', align: 'center', className: 'w-48',
+      cell: (b) => (
+        <Badge className={positionBadgeClass(b.position)}>
+          {positionLabel(b.position)}
+        </Badge>
       ),
     },
     {
@@ -214,13 +281,33 @@ export function AdminBannersPage() {
         loading={create.isPending || update.isPending}
         size="lg"
       >
-        <MediaUploader
-          value={form.image || null}
-          onChange={(path) => setForm({ ...form, image: path ?? '' })}
-          folder="banners"
-          label="Ảnh banner *"
-          maxSizeMB={5}
-        />
+        <div className="space-y-2">
+          <MediaUploader
+            value={form.image || null}
+            onChange={handleImageUploaded}
+            folder="banners"
+            label="Ảnh banner *"
+            maxSizeMB={5}
+          />
+          {form.image && (
+            <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed border-primary/40 bg-primary/5 p-2.5">
+              <CropIcon className="h-4 w-4 text-primary" />
+              <span className="flex-1 text-xs text-muted-foreground">
+                Tỷ lệ khung slot này là <b>{aspectLabel(form.position)}</b>.
+                Cắt ảnh để phần quan trọng nằm gọn trong khung.
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => openCropper(form.image)}
+              >
+                <CropIcon className="mr-1.5 h-3.5 w-3.5" />
+                {form.image ? 'Cắt lại ảnh' : 'Cắt ảnh'}
+              </Button>
+            </div>
+          )}
+        </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2 md:col-span-2">
@@ -251,6 +338,29 @@ export function AdminBannersPage() {
             </p>
           </div>
 
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="position">Vị trí hiển thị *</Label>
+            <Select
+              value={form.position ?? 'hero_carousel'}
+              onValueChange={(v) => setForm({ ...form, position: v })}
+            >
+              <SelectTrigger id="position">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {BANNER_POSITIONS.map((p) => (
+                  <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              <b>Carousel chính (16:9):</b> nhiều banner được hiển thị theo thứ tự.
+              <b> Sidebar Điện thoại / Laptop (1:3, dọc dài):</b> mỗi khu chỉ hiện 1 banner —
+              nếu có nhiều banner cùng slot, banner có STT nhỏ nhất được chọn.
+              Chọn ảnh gốc dọc/dài để crop không mất nhiều nội dung.
+            </p>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="sortOrder">Thứ tự hiển thị</Label>
             <Input
@@ -277,6 +387,15 @@ export function AdminBannersPage() {
           </div>
         </div>
       </FormDialog>
+
+      <ImageCropperDialog
+        open={cropperOpen}
+        onOpenChange={setCropperOpen}
+        imageSrc={cropperImageSrc}
+        aspect={aspectForPosition(form.position)}
+        folder="banners"
+        onSaved={(newPath) => setForm((f) => ({ ...f, image: newPath }))}
+      />
     </div>
   )
 }

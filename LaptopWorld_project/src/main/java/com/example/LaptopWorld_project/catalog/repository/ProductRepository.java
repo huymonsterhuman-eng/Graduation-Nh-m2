@@ -35,6 +35,10 @@ public interface ProductRepository extends JpaRepository<Product, Long>,
 
     boolean existsByBrandId(Long brandId);
 
+    /** Đếm SP theo từng brand (đã lọc soft-delete qua @SQLRestriction). */
+    @Query("SELECT p.brand.id, COUNT(p) FROM Product p WHERE p.brand.id IS NOT NULL GROUP BY p.brand.id")
+    java.util.List<Object[]> countGroupByBrandId();
+
     @Modifying
     @Query("UPDATE Product p SET p.views = p.views + 1 WHERE p.id = :id")
     int incrementViews(@Param("id") Long id);

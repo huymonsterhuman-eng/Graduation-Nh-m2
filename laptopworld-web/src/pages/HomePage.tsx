@@ -8,7 +8,8 @@ import { AiRecommendSection } from '@/components/common/AiRecommendSection'
 import { PromoGrid } from '@/components/common/PromoGrid'
 import { CollectionsSection } from '@/components/common/CollectionsSection'
 import { TestimonialSection } from '@/components/common/TestimonialSection'
-import { useBanners } from '@/hooks/api/useBanners'
+import { useBanners, useBannerBySlot } from '@/hooks/api/useBanners'
+import { productImageSrc } from '@/lib/format'
 import { useCategories } from '@/hooks/api/useCategories'
 import { usePosts } from '@/hooks/api/useBlog'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -20,6 +21,8 @@ export function HomePage() {
   const { data: banners } = useBanners()
   const { data: tree } = useCategories()
   const { data: posts } = usePosts({ size: 3 })
+  const { data: phoneSidebar } = useBannerBySlot('sidebar_phone')
+  const { data: laptopSidebar } = useBannerBySlot('sidebar_laptop')
 
   const findCat = (slug: string) => tree?.find((c) => c.slug === slug)
   const dienThoai = findCat('dien-thoai')
@@ -68,9 +71,10 @@ export function HomePage() {
           title="Điện thoại nổi bật"
           categoryId={dienThoai.id}
           categorySlug={dienThoai.slug}
-          bannerTitle="iPhone 15 Pro Max"
-          bannerDesc="Trả góp 0% - Bảo hành 12 tháng"
-          bannerImage={`https://picsum.photos/seed/lw-promo-phone/300/400`}
+          bannerTitle={phoneSidebar?.title || 'iPhone 15 Pro Max'}
+          bannerDesc={phoneSidebar ? undefined : 'Trả góp 0% - Bảo hành 12 tháng'}
+          bannerImage={phoneSidebar?.image ? productImageSrc(phoneSidebar.image) : `https://picsum.photos/seed/lw-promo-phone/300/400`}
+          bannerLink={phoneSidebar?.link || undefined}
         />
       )}
 
@@ -80,9 +84,10 @@ export function HomePage() {
           title="Laptop văn phòng - Gaming"
           categoryId={laptop.id}
           categorySlug={laptop.slug}
-          bannerTitle="MacBook Air M3"
-          bannerDesc="Chỉ từ 22.99 triệu - Trả góp 0%"
-          bannerImage={`https://picsum.photos/seed/lw-promo-laptop/300/400`}
+          bannerTitle={laptopSidebar?.title || 'MacBook Air M3'}
+          bannerDesc={laptopSidebar ? undefined : 'Chỉ từ 22.99 triệu - Trả góp 0%'}
+          bannerImage={laptopSidebar?.image ? productImageSrc(laptopSidebar.image) : `https://picsum.photos/seed/lw-promo-laptop/300/400`}
+          bannerLink={laptopSidebar?.link || undefined}
           extraChips={['Văn phòng', 'Gaming', 'Đồ họa', 'Mỏng nhẹ', 'Sinh viên']}
         />
       )}

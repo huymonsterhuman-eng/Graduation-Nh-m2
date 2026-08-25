@@ -124,6 +124,7 @@ export interface Brand {
   isActive: boolean
   createdAt?: string
   updatedAt?: string
+  productCount?: number
 }
 
 // ==================== Review ====================
@@ -247,11 +248,22 @@ export interface Banner {
   link?: string
   sortOrder: number
   isActive: boolean
+  /** Slot hiển thị: hero_carousel | sidebar_phone | sidebar_laptop | ... */
+  position?: string | null
+  /** Cách hiển thị ảnh: 'cover' (crop lấp đầy) | 'contain' (fit toàn ảnh). */
+  imageFit?: 'cover' | 'contain'
   authorId?: number
   authorName?: string
   createdAt: string
   updatedAt: string
 }
+
+/** Danh sách slot chuẩn — dùng cho dropdown admin và query FE. */
+export const BANNER_POSITIONS = [
+  { value: 'hero_carousel', label: 'Carousel chính (đầu trang)' },
+  { value: 'sidebar_phone', label: 'Sidebar khu Điện thoại' },
+  { value: 'sidebar_laptop', label: 'Sidebar khu Laptop' },
+] as const
 
 // ==================== Blog ====================
 export interface PostCategory {

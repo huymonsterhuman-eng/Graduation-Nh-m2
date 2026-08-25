@@ -15,6 +15,18 @@ export function useBanners() {
   })
 }
 
+/** Lấy 1 banner active tại slot (trả null nếu chưa có). */
+export function useBannerBySlot(position: string) {
+  return useQuery({
+    queryKey: ['banners', 'slot', position],
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data } = await api.get<ApiResponse<Banner | null>>(`/banners/slot/${position}`)
+      return data.data ?? null
+    },
+  })
+}
+
 // ================== Admin ==================
 
 export interface BannerInput {
@@ -23,6 +35,8 @@ export interface BannerInput {
   link?: string
   sortOrder?: number
   isActive?: boolean
+  position?: string
+  imageFit?: 'cover' | 'contain'
 }
 
 export function useAdminBanners() {
@@ -46,6 +60,7 @@ export function useCreateBanner() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'banners'] })
       qc.invalidateQueries({ queryKey: ['banners'] })
+      qc.invalidateQueries({ queryKey: ['banners', 'slot'] })
     },
   })
 }
@@ -61,6 +76,7 @@ export function useUpdateBanner() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'banners'] })
       qc.invalidateQueries({ queryKey: ['banners'] })
+      qc.invalidateQueries({ queryKey: ['banners', 'slot'] })
     },
   })
 }
@@ -75,6 +91,7 @@ export function useDeleteBanner() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'banners'] })
       qc.invalidateQueries({ queryKey: ['banners'] })
+      qc.invalidateQueries({ queryKey: ['banners', 'slot'] })
     },
   })
 }

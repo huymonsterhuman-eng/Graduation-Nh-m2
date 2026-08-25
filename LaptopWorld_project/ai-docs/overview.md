@@ -1,5 +1,11 @@
 # LaptopWorld — Tổng quan dự án
 
+> ⚠️ **Lưu ý cho AI assistant / dev khi làm việc trên repo này:**
+> - **Backend + Frontend luôn chạy trực tiếp trên branch `main`** tại đường dẫn gốc `D:\FINALYEAR\GRADUATION\LaptopWorld_project\`.
+> - **Không sửa code trong `.claude/worktrees/*`** — worktree là bản clone tách biệt, thay đổi ở đó BE/FE sẽ KHÔNG pickup được. Ai đang chạy dev server sẽ không thấy thay đổi.
+> - Luôn edit file trực tiếp trên main path (`LaptopWorld_project/...` và `laptopworld-web/...` từ repo root), rồi user restart BE tay (devtools đã tắt do bug Java 25 — xem [feedback memory](../../../.claude/projects/D--FINALYEAR-GRADUATION-LaptopWorld-project/memory/feedback_java25_devtools.md)); FE tự HMR.
+> - Nếu Claude đang trong worktree cwd, vẫn dùng đường dẫn tuyệt đối tới main để Read/Edit/Write.
+
 > **Đề tài:** Xây dựng hệ thống thương mại điện tử tích hợp trợ lý AI hỗ trợ tư vấn sản phẩm cho **LaptopWorld**.
 > **Loại:** Đồ án tốt nghiệp.
 > **Cập nhật:** 2026-08-25 (**Phase 11 ✅ HOÀN THÀNH** — 5 bước 11A→11E xong: 57 test tự động (41 unit + 16 integration Testcontainers) pass < 45s; Docker Compose 3 container end-to-end (`docker compose up -d` truy cập `http://localhost` OK, ảnh SP hiển thị); `AuthRateLimiter` chống brute-force login/register/forgot-password; [security-audit.md](security-audit.md) verify 0 IDOR + config prod hardened; V22 seed 5 user + 5 voucher + 10 order rải qua 6 status; Newman 154 request pass in 20.8s → [newman-report.html](newman-report.html) 2.8MB; [testcases.md](testcases.md) mở rộng từ 38 → 93 case cho báo cáo. **Hotfix cùng ngày ✅ HOÀN THÀNH (user đã verify STAFF login thành công):** (1) Tách bạch session admin/customer bằng field `loginSource` — 4 file FE (`auth.ts`, `LoginPage.tsx`, `AdminLoginPage.tsx`, `AdminProtectedRoute.tsx`); (2) **Fix bug backend chính:** `LoginResponse.UserInfo` chỉ có `roles` mà **thiếu `permissions[]`** (bỏ sót từ Sprint 9G-perm, chỉ `/auth/me` trả) — thêm field `permissions: List<String>` vào record + `AuthService.toUserInfo()` collect từ `user.roles.permissions`. Trước bug không lộ vì user luôn login ADMIN (bypass permission check); STAFF login → `hasPermission('access_admin')=undefined` → AdminLoginPage tự logout. Còn **Phase 12** (báo cáo Word + slide + video demo).

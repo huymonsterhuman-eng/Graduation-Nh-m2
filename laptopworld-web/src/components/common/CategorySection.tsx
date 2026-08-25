@@ -48,21 +48,21 @@ export function CategorySection({
       </div>
 
       <div className="grid gap-4 md:grid-cols-[240px_1fr]">
-        {/* Left banner promo */}
-        <Link to={bannerLink || `/danh-muc/${categorySlug}`} className="block">
-          <Card className="h-full overflow-hidden bg-gradient-to-br from-primary/10 via-primary/5 to-transparent transition hover:shadow-md">
-            <div className="p-4 space-y-2">
-              <h3 className="text-lg font-bold text-primary line-clamp-2">{bannerTitle}</h3>
-              {bannerDesc && <p className="text-xs text-muted-foreground">{bannerDesc}</p>}
-            </div>
-            {bannerImage && (
-              <div className="aspect-[3/4] bg-muted overflow-hidden">
-                <img
-                  src={bannerImage}
-                  alt={bannerTitle}
-                  className="w-full h-full object-cover"
-                  onError={(e) => { e.currentTarget.style.opacity = '0.3' }}
-                />
+        {/* Left banner promo — aspect 1:3 CỨNG khớp với cropper 1:3 ở admin.
+            Không stretch theo grid SP để tránh ảnh bị cover-crop khi grid cao hơn. */}
+        <Link to={bannerLink || `/danh-muc/${categorySlug}`} className="block self-start">
+          <Card className="aspect-[1/3] overflow-hidden p-0 transition hover:shadow-md">
+            {bannerImage ? (
+              <img
+                src={bannerImage}
+                alt={bannerTitle}
+                className="h-full w-full object-cover"
+                onError={(e) => { e.currentTarget.style.opacity = '0.3' }}
+              />
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center gap-1 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-4 text-center">
+                <h3 className="text-base font-bold text-primary line-clamp-2">{bannerTitle}</h3>
+                {bannerDesc && <p className="text-xs text-muted-foreground">{bannerDesc}</p>}
               </div>
             )}
           </Card>

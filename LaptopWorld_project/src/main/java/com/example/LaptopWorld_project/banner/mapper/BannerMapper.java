@@ -16,6 +16,8 @@ public interface BannerMapper {
                 b.getLink(),
                 b.getSortOrder(),
                 b.isActive(),
+                b.getPosition(),
+                b.getImageFit(),
                 b.getAuthor() != null ? b.getAuthor().getId() : null,
                 b.getAuthor() != null ? b.getAuthor().getFullName() : null,
                 b.getCreatedAt(),

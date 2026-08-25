@@ -9,6 +9,8 @@ public record BannerDto(
         String link,
         int sortOrder,
         boolean isActive,
+        String position,
+        String imageFit,
         Long authorId,
         String authorName,
         OffsetDateTime createdAt,
