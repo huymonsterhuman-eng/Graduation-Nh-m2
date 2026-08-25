@@ -8,7 +8,7 @@
 
 > **Đề tài:** Xây dựng hệ thống thương mại điện tử tích hợp trợ lý AI hỗ trợ tư vấn sản phẩm cho **LaptopWorld**.
 > **Loại:** Đồ án tốt nghiệp.
-> **Cập nhật:** 2026-08-25 (**Phase 11 ✅ HOÀN THÀNH** — 5 bước 11A→11E xong: 57 test tự động (41 unit + 16 integration Testcontainers) pass < 45s; Docker Compose 3 container end-to-end (`docker compose up -d` truy cập `http://localhost` OK, ảnh SP hiển thị); `AuthRateLimiter` chống brute-force login/register/forgot-password; [security-audit.md](security-audit.md) verify 0 IDOR + config prod hardened; V22 seed 5 user + 5 voucher + 10 order rải qua 6 status; Newman 154 request pass in 20.8s → [newman-report.html](newman-report.html) 2.8MB; [testcases.md](testcases.md) mở rộng từ 38 → 93 case cho báo cáo. **Hotfix cùng ngày ✅ HOÀN THÀNH (user đã verify STAFF login thành công):** (1) Tách bạch session admin/customer bằng field `loginSource` — 4 file FE (`auth.ts`, `LoginPage.tsx`, `AdminLoginPage.tsx`, `AdminProtectedRoute.tsx`); (2) **Fix bug backend chính:** `LoginResponse.UserInfo` chỉ có `roles` mà **thiếu `permissions[]`** (bỏ sót từ Sprint 9G-perm, chỉ `/auth/me` trả) — thêm field `permissions: List<String>` vào record + `AuthService.toUserInfo()` collect từ `user.roles.permissions`. Trước bug không lộ vì user luôn login ADMIN (bypass permission check); STAFF login → `hasPermission('access_admin')=undefined` → AdminLoginPage tự logout. Còn **Phase 12** (báo cáo Word + slide + video demo).
+> **Cập nhật:** 2026-08-25 (**Phase 11 ✅ HOÀN THÀNH** — 5 bước 11A→11E xong: 57 test tự động (41 unit + 16 integration Testcontainers) pass < 45s; Docker Compose 3 container end-to-end (`docker compose up -d` truy cập `http://localhost` OK, ảnh SP hiển thị); `AuthRateLimiter` chống brute-force login/register/forgot-password; [security-audit.md](security-audit.md) verify 0 IDOR + config prod hardened; V22 seed 5 user + 5 voucher + 10 order rải qua 6 status; Newman 154 request pass in 20.8s → [newman-report.html](newman-report.html) 2.8MB; [testcases.md](testcases.md) mở rộng từ 38 → 93 case cho báo cáo. **Hotfix cùng ngày ✅ HOÀN THÀNH (user đã verify STAFF login thành công):** (1) Tách bạch session admin/customer bằng field `loginSource` — 4 file FE (`auth.ts`, `LoginPage.tsx`, `AdminLoginPage.tsx`, `AdminProtectedRoute.tsx`); (2) **Fix bug backend chính:** `LoginResponse.UserInfo` chỉ có `roles` mà **thiếu `permissions[]`** (bỏ sót từ Sprint 9G-perm, chỉ `/auth/me` trả) — thêm field `permissions: List<String>` vào record + `AuthService.toUserInfo()` collect từ `user.roles.permissions`. Trước bug không lộ vì user luôn login ADMIN (bypass permission check); STAFF login → `hasPermission('access_admin')=undefined` → AdminLoginPage tự logout. **Polish 9F round 2 (cùng ngày, commit `41e1c53`):** (a) Cleanup demo data — xoá 15 orders `ORD-DEMO/TEST/REV-*` + 5 goods_issues + 3 users `user3/4/5`; (b) AdminBrandsPage thêm cột "Logo" (header text) + "Sản phẩm" (badge count), guardrail xoá disable khi còn SP + khoá slug khi còn SP + warn realtime khi tắt isActive; (c) Banner đa slot — V23 `banners.position` (hero_carousel/sidebar_phone/sidebar_laptop), V24 `banners.image_fit`, endpoint `GET /api/banners/slot/{position}` + hook `useBannerBySlot`, admin form Select vị trí; (d) Image cropper với `react-easy-crop` — `ImageCropperDialog` kéo/zoom/xoay + canvas→JPEG blob→upload lại, auto mở sau upload banner, aspect 16:9 hero / 1:3 sidebar; (e) `CategorySection` sidebar aspect-[1/3] cứng khớp cropper, ảnh fill 100% object-cover không cắt mép. Còn **Phase 12** (báo cáo Word + slide + video demo).
 
 ---
 
@@ -30,7 +30,7 @@ Xây dựng một website thương mại điện tử hoàn chỉnh dành cho c�
 | Phase | Nội dung | Kết quả |
 |-------|----------|---------|
 | 0 | Setup env (Docker Postgres pgvector, Flyway, Spring Security…) | ✅ |
-| 1 | Schema DB (19 migrations V1-V19) | ✅ |
+| 1 | Schema DB (24 migrations V1-V24, gồm V14_5 seed admin) | ✅ |
 | 2 | Auth full flow (register, verify email, login, refresh, forgot/reset) | ✅ |
 | 3 | Catalog CRUD (categories cha-con, brands, collections, products, media upload) | ✅ |
 | 4 | Address, Cart, Voucher, Order + Checkout | ✅ |
@@ -46,7 +46,7 @@ Xây dựng một website thương mại điện tử hoàn chỉnh dành cho c�
 **Backend:** ~130+ endpoint (thêm 30 endpoint admin cho dashboard + orders + inventory + tạo đơn/phiếu).
 **Frontend user site:** 26 route.
 **Frontend admin:** 24+ route (`/admin/*` — Dashboard + Products + Orders + Inventory + Partners + Vouchers + Banners + Blog + Reviews).
-**Dữ liệu:** 200 SP, 12 categories, 27 brands, 3 partners (giờ có code), 4 post_categories, 8 posts, 3 banners.
+**Dữ liệu (sau cleanup 2026-08-25):** 200 SP, 12 categories, 27 brands (Acer 0 SP), 3 partners (có code), 4 post_categories, 8 posts, 3 banners (đều slot `hero_carousel`), 5 users, 10 orders (không còn ORD-DEMO/TEST/REV), 7 goods_issues.
 
 **Điểm nhấn Sprint 9E:**
 - Race condition oversell (V19 `reserved_stock` column + PESSIMISTIC_WRITE lock)
@@ -126,7 +126,7 @@ D:\FINALYEAR\GRADUATION\LaptopWorld_project\   ← git repo root
 │           ├── application.properties
 │           ├── application-dev.properties
 │           ├── application-local.properties  ← gitignored (chứa Gemini key, SMTP)
-│           ├── db\migration\     ← Flyway V1-V17 (auto chạy khi boot)
+│           ├── db\migration\     ← Flyway V1-V24 (auto chạy khi boot)
 │           └── templates\        ← Thymeleaf email templates
 │
 ├── laptopworld-web\              ← React + Vite frontend user site (đã gộp vào repo 2026-08-23)
@@ -153,12 +153,13 @@ D:\FINALYEAR\GRADUATION\LaptopWorld_project\   ← git repo root
         │   └── theme.ts          ← light/dark toggle
         ├── hooks\
         │   ├── useVoiceInput.ts  ← Web Speech API cho chat
-        │   └── api\              ← TanStack Query hooks
-        │       ├── useProducts.ts, useCategories.ts, useBrands.ts
-        │       ├── useBanners.ts, useBlog.ts, useReviews.ts, useCreateReview.ts
-        │       ├── useSearch.ts  ← semantic search
-        │       ├── useCart.ts, useAddresses.ts, useOrders.ts, useVouchers.ts
-        │       └── useChat.ts    ← AI chat session + agent-message
+        │   └── api\              ← TanStack Query hooks (22 file)
+        │       ├── (user) useProducts, useCategories, useBanners, useBlog,
+        │       │   useReviews, useCreateReview, useSearch, useCart,
+        │       │   useAddresses, useOrders, useVouchers, useChat, useCollections
+        │       └── (admin) useAdminBlog, useAdminCatalog, useAdminChatSessions,
+        │           useAdminDashboard, useAdminInventory, useAdminOrders,
+        │           useAdminProducts, useAdminUsers, useRoles
         ├── components\
         │   ├── ChatWidget.tsx    ← Float chat AI popup (mascot + voice + cited products)
         │   ├── MascotIcon.tsx    ← SVG mascot robot laptop inline
@@ -166,13 +167,30 @@ D:\FINALYEAR\GRADUATION\LaptopWorld_project\   ← git repo root
         │   ├── ReviewDialog.tsx  ← Modal đăng review từ order delivered
         │   ├── ScrollToTop.tsx   ← Fix React Router không auto scroll
         │   ├── ui\               ← shadcn (button, input, label, card, badge, skeleton,
-        │   │                       tabs, separator, carousel)
+        │   │                       tabs, separator, carousel, dialog, dropdown-menu,
+        │   │                       tooltip, popover, select, sheet, switch, table,
+        │   │                       alert-dialog, avatar)
         │   ├── layout\           ← Header (2 tầng: TopBar + main), Footer, MainLayout,
         │   │                       AccountLayout, MegaMenu, TopBar
-        │   └── common\           ← ProductCard, ProductGrid, Rating, PriceTag, Pagination,
-        │                           Breadcrumb, SmartImage, FlashSaleBlock, CategorySection,
-        │                           AccessoriesSection, AiRecommendSection, PromoGrid,
-        │                           TestimonialSection, CompareBar
+        │   ├── common\           ← ProductCard, ProductGrid, Rating, PriceTag, Pagination,
+        │   │                       Breadcrumb, SmartImage, FlashSaleBlock, CategorySection,
+        │   │                       AccessoriesSection, AiRecommendSection, PromoGrid,
+        │   │                       TestimonialSection, CompareBar, CollectionsSection
+        │   └── admin\            ← 5 file layout + adminNav.ts + 2 folder con
+        │       ├── AdminLayout.tsx, AdminSidebar.tsx, AdminMobileSidebar.tsx,
+        │       │   AdminTopbar.tsx, AdminProtectedRoute.tsx, adminNav.ts
+        │       ├── common\       ← 14 primitive tái sử dụng cho admin:
+        │       │   ├── AdminPageHeader, AdminTable, AdminSection, AdminEmptyState,
+        │       │   ├── ConfirmDialog, FormDialog,
+        │       │   ├── MediaUploader (upload 1 ảnh), MultiImageUploader (upload nhiều),
+        │       │   ├── ImageCropperDialog (crop banner — react-easy-crop, Sprint polish),
+        │       │   ├── TipTapEditor, SpecFieldsInput, SpecTemplateEditor,
+        │       │   ├── ProductCombobox, OrderStatusBadge
+        │       └── dashboard\    ← 10 widget cho AdminDashboardPage:
+        │           ├── DashboardFilter, KpiCard,
+        │           ├── RevenueChart, StockMovementChart, SalesByCategoryChart,
+        │           ├── TopProductsWidget, LatestOrdersWidget,
+        │           ├── DeadStockWidget, LowRatedWidget, ChatbotSection
         └── pages\
             ├── auth\             ← Login, Register, ForgotPassword, ResetPassword, VerifyEmail
             ├── HomePage.tsx      ← Trang chủ: Banner + FlashSale + 2 CategorySection + Accessories +
@@ -181,7 +199,22 @@ D:\FINALYEAR\GRADUATION\LaptopWorld_project\   ← git repo root
             ├── BlogListPage, BlogDetailPage, ComparePage
             ├── CartPage, CheckoutPage, ThankYouPage
             ├── AccountPage, AddressBookPage, OrdersPage, OrderDetailPage, MyVouchersPage
-            └── NotFoundPage
+            ├── NotFoundPage
+            └── admin\            ← 30+ trang admin (Sprint 9A-9H):
+                ├── AdminLoginPage, AdminDashboardPage, AdminNotFoundPage, ForbiddenPage
+                ├── AdminCategoriesPage, AdminBrandsPage, AdminCollectionsPage
+                ├── AdminProductsPage, AdminProductFormPage
+                ├── AdminOrdersPage, AdminOrderDetailPage, AdminOrderPrintPage,
+                │   AdminCreateOrderPage
+                ├── AdminInventoryPage, AdminPartnersPage,
+                │   AdminGoodsReceiptsPage, AdminCreateReceiptPage,
+                │   AdminGoodsIssuesPage, AdminCreateIssuePage
+                ├── AdminBannersPage, AdminVouchersPage, AdminReviewsPage
+                ├── AdminPostCategoriesPage, AdminPostsPage, AdminPostFormPage
+                ├── AdminUsersPage, AdminUserDetailPage, AdminUserFormPage
+                ├── AdminRolesPage, AdminRoleFormPage
+                ├── AdminAiEmbeddingPage, AdminAiChatSessionsPage, ChatSessionDetailDialog
+                └── AdminPlaceholderPage
 ```
 
 ---
@@ -194,7 +227,7 @@ cd D:\FINALYEAR\GRADUATION\LaptopWorld_project\LaptopWorld_project
 docker compose -f docker-compose.dev.yml up -d       # Postgres pgvector cổng 5433
 ./mvnw spring-boot:run "-Dspring-boot.run.profiles=dev,local"
 ```
-Boot xong: Flyway auto chạy 17 migrations, DataInitializer seed admin/admin123.
+Boot xong: Flyway auto chạy 24 migrations, DataInitializer seed admin/admin123.
 - API: http://localhost:8080/api/
 - Swagger: http://localhost:8080/swagger-ui.html
 - Health: http://localhost:8080/actuator/health
@@ -245,7 +278,7 @@ Vite proxy `/api` + `/uploads` → localhost:8080.
 
 ## 6. Trạng thái database
 
-**19 migrations V1-V19:**
+**24 migrations V1-V24** (gồm V14_5 seed admin trước inventory):
 | Version | Nội dung |
 |---------|----------|
 | V1 | Extensions: vector, pg_trgm, unaccent + trigger set_updated_at |
@@ -262,11 +295,17 @@ Vite proxy `/api` + `/uploads` → localhost:8080.
 | V12 | Auth tokens seed + admin seed |
 | V13 | Seed catalog (12 categories, 27 brands) |
 | V14 | Seed 200 products |
+| V14_5 | Seed admin trước V15 (fix bug prod: V15 seed_inventory tham chiếu admin) |
 | V15 | Seed inventory (3 partners + phiếu nhập ảo bao trọn 200 SP) |
 | V16 | Inventory preparing flow (thêm status preparing/pending, nullable order_id + goods_receipt_detail_id) |
 | V17 | Seed blog (4 categories + 5 posts) + 3 banners |
 | V18 | `partners.code` UNIQUE (mã ĐVVC) + backfill 3 partner (NCC/GHN/VP) — dùng sinh tracking number |
 | V19 | `products.reserved_stock` INT (chống oversell) + `products.cost_price` NUMERIC + CHECK `cost_price ≤ price` |
+| V20 | Reset + seed 30 permission 4 nhóm (hệ thống/SP-nội dung/kho-vận chuyển/bán hàng-KH) + assign ADMIN full 30 + STAFF 11 |
+| V21 | Thêm cột thanh toán VNPay: `orders.payment_transaction_ref` VARCHAR(50) + `orders.paid_at` TIMESTAMPTZ + index |
+| V22 | Seed demo cho báo cáo: 5 user (customer/CTV) + 5 voucher (fixed/percent) + 10 order rải qua 6 status (đã cleanup DEMO/TEST/REV sau khi review UI) |
+| V23 | `banners.position` VARCHAR(50) (hero_carousel/sidebar_phone/sidebar_laptop) + backfill banner cũ về hero_carousel + index `(position, is_active, sort_order)` |
+| V24 | `banners.image_fit` VARCHAR(10) NOT NULL DEFAULT 'cover' (cột dự phòng, không dùng UI — cropper đã thay thế mục đích ban đầu) |
 
 ---
 
@@ -324,6 +363,42 @@ Vite proxy `/api` + `/uploads` → localhost:8080.
   - Customer session vào `/admin/*` bị đá về `/admin/dang-nhap` (bắt re-login)
   - Session cũ (loginSource undefined) cũng bị force re-login — hành vi đúng
 - **Note trải nghiệm:** Vite HMR đôi khi không catch được thay đổi trong Zustand store → **cần restart `npm run dev`** để test được. Đã ghi vào [feedback memory](../../../.claude/projects/D--FINALYEAR-GRADUATION-LaptopWorld-project/memory/feedback_admin_login_session_source.md).
+
+**Polish 9F round 2 (2026-08-25 tối, commit `41e1c53`) — cleanup data + brand cột SP + banner đa slot + cropper ảnh:**
+
+*(a) Cleanup demo data trước khi quay video Phase 12* — script SQL 1 transaction có preview + sanity check:
+- Xoá 15 orders `ORD-DEMO-001..010` + `ORD-TEST-002/003/004` + `ORD-REV-005/006` (kèm 5 goods_issues auto-cancelled + goods_issue_details + user_vouchers + order_details)
+- Xoá 3 users `user3/user4/user5` (id 8/9/10) — sạch dependencies vì orders của họ đã xoá trước; giữ user1/user2 làm demo customer
+- Giữ 4 đơn `ORD-2026081*` có "Admin Test" trong shipping_name (mã ngày thật, không phải seed) + `GI-20260817-006` note "Test reject"
+- Script lưu tại `scripts/cleanup-demo-test.sql` (worktree, chỉ dùng 1 lần)
+
+*(b) AdminBrandsPage — 2 cột mới + guardrails realtime* ([BrandService](../src/main/java/com/example/LaptopWorld_project/catalog/service/BrandService.java), [AdminBrandsPage.tsx](../../laptopworld-web/src/pages/admin/AdminBrandsPage.tsx)):
+- Cột **"Logo"** (thêm header text vì trước là `''`)
+- Cột **"Sản phẩm"** — badge count + icon Package. Backend `ProductRepository.countGroupByBrandId()` bulk query 1 shot tránh N+1, merge vào `BrandDto.productCount` trong `BrandService.findAll()`
+- Guardrail **xoá**: nút Trash `disabled` + tooltip "Còn X sản phẩm — chuyển SP sang brand khác trước" khi `productCount > 0` (BE đã có `BRAND_HAS_PRODUCTS` từ Sprint 9C, FE giờ hiển thị proactively)
+- Guardrail **sửa slug**: `BrandService.update()` throw `SLUG_LOCKED_HAS_PRODUCTS` khi slug đổi mà brand còn SP (tránh gãy URL `/thuong-hieu/*` cũ); FE disable input + icon 🔒 + hint amber
+- Warn realtime khi tắt Switch `isActive` mà brand còn SP → alert amber "Ẩn brand này sẽ khiến khách không lọc được X sản phẩm..."
+
+*(c) Banner đa slot (V23) — CRUD theo vị trí hiển thị*:
+- Cột `banners.position` (`hero_carousel` | `sidebar_phone` | `sidebar_laptop`) + backfill 3 banner cũ về `hero_carousel`
+- Endpoint public `GET /api/banners/slot/{position}` (trả banner active có sort_order nhỏ nhất) + `useBannerBySlot()` hook
+- `publicListActive()` đổi filter theo `SLOT_HERO_CAROUSEL` (không bị lẫn banner sidebar)
+- AdminBannersPage: Select "Vị trí hiển thị" 3 option + cột badge màu theo slot (primary/sky/amber)
+- HomePage.tsx: `useBannerBySlot('sidebar_phone')` + `'sidebar_laptop'` để lấy banner, fallback picsum nếu chưa có
+
+*(d) Image Cropper — cắt ảnh vừa khung ngay trong app*:
+- Cài **`react-easy-crop`** (~15KB, 2 packages)
+- Component mới `ImageCropperDialog` — kéo + zoom (slider 1x-4x) + xoay (0-360° + nút 90°); canvas 2 tầng (rotate → crop) → `toBlob('image/jpeg', 0.92)` → gọi lại `/admin/media/upload` với File mới → path mới thay `form.image`
+- Aspect chuẩn theo slot: **16:9** hero, **1:3** sidebar (khớp với khung CSS 1:3 của CategorySection)
+- Auto mở sau khi upload lần đầu + nút "Cắt lại ảnh" hiển thị luôn ở form khi đã có ảnh
+- Không cần crossOrigin ('anonymous') vì ảnh `/uploads/*` cùng origin qua Vite proxy
+
+*(e) V24 `banners.image_fit`* — cột thêm trong plan ban đầu (cover/contain) nhưng sau khi có cropper thì không cần UI nữa. Giữ column NOT NULL DEFAULT 'cover' để không phải rollback migration.
+
+*(f) `CategorySection` sidebar — khung cứng aspect 1:3*:
+- Trước: `h-full` stretch theo grid SP → aspect biến động → object-cover cắt mép ảnh cropped
+- Giờ: `aspect-[1/3]` cứng + `self-start` (không stretch) → khớp chính xác cropper 1:3, ảnh fit 100% không cắt
+- Trade-off chấp nhận được: khoảng trắng ~30-80px dưới banner nếu grid SP cao hơn 720px
 
 ### Phase 12 — Báo cáo Word + slide + video demo ⚪
 

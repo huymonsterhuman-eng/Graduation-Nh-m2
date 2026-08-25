@@ -439,6 +439,13 @@ pending → confirmed → preparing → APPROVE → shipping → delivered
   - Hooks mới: `useAdminBanners` + CRUD, `useAdminVouchers` + CRUD (mở rộng useVouchers.ts), `useAdminReviews` + toggleHidden/reply/delete (mở rộng useReviews.ts), `useAdminBlog.ts` mới (PostCategory + Post CRUD).
   - **UX checklist rút ra (memory `feedback_admin_form_ux.md`):** validate realtime không chờ submit; action button table dùng `variant="outline" size="sm"` + text label chứ không icon-only; list admin có cột Ngày tạo/sửa; label khó hiểu phải có hint 1-2 dòng; note vàng cho ràng buộc nghiệp vụ ngầm; preview `formatPrice` cho input số tiền; datetime-local trong Dialog phải có class color-scheme.
 
+  - **Polish round 2 (2026-08-25 tối, commit `41e1c53`) — brand cột SP + banner đa slot + cropper:**
+    - **Cleanup demo data:** xoá 15 orders `ORD-DEMO/TEST/REV-*` + 5 goods_issues + 3 users `user3/4/5` (script `scripts/cleanup-demo-test.sql` 1 transaction, có preview + sanity check). Giữ user1/user2 demo customer + 4 đơn ngày thật.
+    - **AdminBrandsPage** — thêm cột **"Logo"** (header text) + **"Sản phẩm"** (badge count `Package`). Backend `ProductRepository.countGroupByBrandId()` bulk 1 query merge vào `BrandDto.productCount`. Guardrail xoá disable + tooltip khi còn SP. `BrandService.update()` throw `SLUG_LOCKED_HAS_PRODUCTS` khi đổi slug mà brand còn SP (tránh gãy URL). Warn realtime khi tắt isActive brand đang có SP.
+    - **Banner đa slot** — V23 `banners.position` (`hero_carousel` | `sidebar_phone` | `sidebar_laptop`) + backfill 3 banner cũ về `hero_carousel` + index. Endpoint `GET /api/banners/slot/{position}` + hook `useBannerBySlot()`. AdminBannersPage: Select vị trí + cột badge màu theo slot. HomePage `useBannerBySlot('sidebar_phone')` + `'sidebar_laptop'` để render banner sidebar từ DB, fallback picsum khi trống.
+    - **Image cropper** — cài `react-easy-crop`, tạo `ImageCropperDialog` (kéo/zoom/xoay + canvas → JPEG blob → upload lại). Auto mở sau upload lần đầu + nút "Cắt lại ảnh". Aspect chuẩn 16:9 hero / 1:3 sidebar. `CategorySection` sidebar chuyển sang `aspect-[1/3]` cứng khớp cropper, ảnh fill 100% object-cover không cắt mép, `self-start` để không stretch grid.
+    - **V24** `banners.image_fit` VARCHAR(10) NOT NULL DEFAULT 'cover' — cột thêm trong plan ban đầu (cover/contain) nhưng cropper thay thế mục đích, giữ column không rollback.
+
 ### Sprint còn lại
 
 - [ ] **Sprint 9G-perm — Phân quyền chi tiết theo mẫu TGDĐ + fix Product page** (~3 buổi) — **làm TRƯỚC Sprint 9G**

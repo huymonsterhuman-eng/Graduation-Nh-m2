@@ -38,8 +38,22 @@
 | `V9__blog_tables.sql` | Blog + banner | 3 |
 | `V10__activity_log.sql` | Audit log | 1 |
 | `V11__indexes.sql` | Tổng hợp các index nâng cao (GIN/HNSW) | — |
+| `V12__auth_tokens_and_seed.sql` | Auth tokens seed + admin seed | — |
+| `V13__seed_catalog.sql` | Seed 12 categories + 27 brands | — |
+| `V14__seed_products.sql` | Seed 200 products | — |
+| `V14_5__seed_admin_before_inventory.sql` | Seed admin trước V15 (fix bug prod) | — |
+| `V15__seed_inventory.sql` | Seed 3 partners + phiếu nhập ảo | — |
+| `V16__inventory_preparing_flow.sql` | Thêm status `preparing`/`pending`, nullable order_id + goods_receipt_detail_id | — |
+| `V17__seed_blog_banner.sql` | Seed 4 post_categories + 5 posts + 3 banners | — |
+| `V18__partner_code_and_seed.sql` | `partners.code` UNIQUE + backfill (dùng cho tracking number) | — |
+| `V19__reserved_stock_and_cost_price.sql` | `products.reserved_stock` + `products.cost_price` + CHECK `cost_price ≤ price` | — |
+| `V20__expand_permissions.sql` | Reset + seed 30 permission 4 nhóm + gán ADMIN/STAFF | — |
+| `V21__payment_transaction_fields.sql` | `orders.payment_transaction_ref` + `orders.paid_at` (VNPay) | — |
+| `V22__seed_demo_data.sql` | Seed demo: 5 user + 5 voucher + 10 order rải 6 status (đã cleanup sau UI review) | — |
+| `V23__banner_position.sql` | `banners.position` VARCHAR(50) + backfill hero_carousel + index | — |
+| `V24__banner_image_fit.sql` | `banners.image_fit` VARCHAR(10) NOT NULL DEFAULT 'cover' (giữ, không dùng UI) | — |
 
-**Tổng: 32 bảng.**
+**Tổng: 32 bảng.** (V12-V24 là ALTER/seed, không thêm bảng mới.)
 
 ---
 
@@ -195,6 +209,8 @@ Nhóm sản phẩm marketing (VD "Deal HOT tháng 8", "Laptop dưới 15 triệu
 - **`post_categories`**: id, name, slug UNIQUE, description, timestamps.
 - **`posts`**: id, title, slug UNIQUE, post_category_id FK nullable, author_id FK nullable, image, excerpt, content TEXT, is_published BOOLEAN, published_at, views, timestamps.
 - **`banners`**: id, title, image, link, sort_order, is_active, author_id FK nullable, timestamps.
+  - **V23** — thêm `position` VARCHAR(50): slot hiển thị trên HomePage (`hero_carousel` | `sidebar_phone` | `sidebar_laptop`). Backfill banner cũ về `hero_carousel`. Index `(position, is_active, sort_order)` cho query FE `useBannerBySlot(position)`.
+  - **V24** — thêm `image_fit` VARCHAR(10) NOT NULL DEFAULT `'cover'`: cột dự phòng cho chế độ hiển thị ảnh (cover/contain), sau khi có Image Cropper thì không dùng UI nữa nhưng giữ column để không rollback migration.
 
 ---
 

@@ -225,6 +225,34 @@ Bảng dưới được mở rộng cho toàn bộ nghiệp vụ chính, phục 
 
 ---
 
+## Polish 2026-08-25 — Brand guardrails + Banner slot + Cropper
+
+### Setup
+- Backend đã chạy V23 + V24 migration (Flyway auto).
+- Login admin → `/admin/thuong-hieu` và `/admin/banner`.
+- Có sẵn brand `Acer` (0 SP), brand `Apple` (33 SP) trong DB.
+
+### Brand guardrails (5 case)
+| ID | Kịch bản | Bước | Kỳ vọng | Status |
+|----|----------|------|---------|--------|
+| BRAND-01 | Cột "Sản phẩm" hiển thị đúng count | `/admin/thuong-hieu` load lần đầu | Mỗi row có badge count đúng theo query bulk `countGroupByBrandId()`; brand không có SP hiện badge outline "0" | ✅ |
+| BRAND-02 | Xoá brand không còn SP | Bấm nút Xoá row Acer (0 SP) → Confirm | Toast "Đã xóa thương hiệu"; row biến mất khỏi list | ✅ |
+| BRAND-03 | Không cho xoá brand còn SP (UI) | Hover nút Xoá row Apple (33 SP) | Nút disable + tooltip "Còn 33 sản phẩm — chuyển SP sang brand khác trước"; click không tác dụng | ✅ |
+| BRAND-04 | Không cho đổi slug brand có SP (UI + BE) | Sửa Apple → thử sửa slug | Input slug disabled + icon 🔒 + hint amber. Nếu bypass FE gọi PUT với slug mới → BE trả 400 `SLUG_LOCKED_HAS_PRODUCTS` | ✅ |
+| BRAND-05 | Warn realtime khi tắt isActive brand có SP | Sửa Apple → tắt Switch "Hoạt động" | Alert amber hiện realtime "Ẩn thương hiệu này sẽ khiến khách không lọc được 33 sản phẩm..."; vẫn cho save nếu confirm | ✅ |
+
+### Banner đa slot + Cropper (6 case)
+| ID | Kịch bản | Bước | Kỳ vọng | Status |
+|----|----------|------|---------|--------|
+| BANNER-01 | Tạo banner sidebar_phone với cropper | `/admin/banner` → Thêm → chọn slot "Sidebar khu Điện thoại" → upload ảnh dọc gốc | Cropper dialog **tự mở** với aspect **1:3**, khung crop dọc dài, có slider zoom + xoay | ✅ |
+| BANNER-02 | Áp dụng crop → ảnh mới lên server | Trong cropper: kéo vùng crop → Áp dụng | Toast "Đã cắt và cập nhật ảnh banner"; ảnh preview trong form đổi sang file mới (UUID mới trong `/uploads/banners/`); path cũ vẫn tồn tại (chưa auto-clean) | ✅ |
+| BANNER-03 | Filter public API theo slot | `GET /api/banners` (không auth) | Trả list banner active có `position='hero_carousel'` **không lẫn** banner sidebar | ✅ |
+| BANNER-04 | Endpoint slot trả banner đúng | `GET /api/banners/slot/sidebar_phone` | Trả banner active có sort_order nhỏ nhất; nếu chưa có → trả `data: null` | ✅ |
+| BANNER-05 | HomePage load banner theo slot | Refresh `/` sau khi tạo banner sidebar_phone | Sidebar khu "Điện thoại nổi bật" hiển thị ảnh vừa upload; nếu xoá banner → sidebar tự fallback về ảnh picsum hardcode | ✅ |
+| BANNER-06 | Khung 1:3 khớp cropper — không cắt mép | So sánh vùng crop trong dialog admin với ảnh trên HomePage | Ảnh ở HomePage hiển thị đúng vùng đã crop, không zoom in cắt 2 bên (aspect FE `aspect-[1/3]` khớp cropper 1:3) | ✅ |
+
+---
+
 ## Tổng kết
 
 | Module | Số case | Đã pass |
@@ -240,7 +268,9 @@ Bảng dưới được mở rộng cho toàn bộ nghiệp vụ chính, phục 
 | **Order FIFO chi tiết (mới)** | **10** | **10 ✅** |
 | **Review gate (mới)** | **5** | **5 ✅** |
 | **Voucher (mới)** | **7** | **7 ✅** |
-| **Tổng** | **93** | **91 ✅ + 2 🟡** |
+| **Brand guardrails (polish)** | **5** | **5 ✅** |
+| **Banner slot + Cropper (polish)** | **6** | **6 ✅** |
+| **Tổng** | **104** | **102 ✅ + 2 🟡** |
 
 ## Test tự động
 
