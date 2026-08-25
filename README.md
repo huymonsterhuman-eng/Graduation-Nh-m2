@@ -1,4 +1,4 @@
-# LaptopWorld — Full Stack
+# LaptopWorld — Full Stack - Nhóm 2
 
 Đồ án tốt nghiệp: E-commerce Spring Boot 4 + React SPA tích hợp trợ lý AI Gemini (RAG + function calling).
 
