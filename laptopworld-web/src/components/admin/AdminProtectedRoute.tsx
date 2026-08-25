@@ -20,6 +20,7 @@ export function AdminProtectedRoute({ children, requiredPermission }: Props) {
   const isReady = useAuthStore((s) => s.isReady)
   const isAdmin = useAuthStore((s) => s.isAdmin)
   const hasPermission = useAuthStore((s) => s.hasPermission)
+  const loginSource = useAuthStore((s) => s.loginSource)
   const location = useLocation()
 
   if (!isReady) {
@@ -30,7 +31,14 @@ export function AdminProtectedRoute({ children, requiredPermission }: Props) {
     )
   }
 
+  // Chưa login → về trang login admin
   if (!user) {
+    return <Navigate to="/admin/dang-nhap" state={{ from: location.pathname }} replace />
+  }
+
+  // Đã login nhưng KHÔNG qua form admin (login từ /dang-nhap khách hàng, hoặc session cũ)
+  // → bắt buộc login lại qua /admin/dang-nhap để xác nhận vào khu vực quản trị
+  if (loginSource !== 'admin') {
     return <Navigate to="/admin/dang-nhap" state={{ from: location.pathname }} replace />
   }
 

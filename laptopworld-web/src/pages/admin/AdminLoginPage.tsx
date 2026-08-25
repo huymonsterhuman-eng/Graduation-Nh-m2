@@ -33,6 +33,8 @@ export function AdminLoginPage() {
   const isReady = useAuthStore((s) => s.isReady)
   const user = useAuthStore((s) => s.user)
   const isAdmin = useAuthStore((s) => s.isAdmin)
+  const hasPermission = useAuthStore((s) => s.hasPermission)
+  const loginSource = useAuthStore((s) => s.loginSource)
   const navigate = useNavigate()
   const location = useLocation()
   const [loading, setLoading] = useState(false)
@@ -42,17 +44,19 @@ export function AdminLoginPage() {
     resolver: zodResolver(schema),
   })
 
-  // Admin đã login rồi thì bay thẳng vào /admin
-  if (isReady && user && isAdmin()) {
+  // Đã login từ form ADMIN + có quyền → bay thẳng vào /admin.
+  // Nếu login từ form customer thì vẫn hiện form admin để user re-login (xác nhận vào khu quản trị).
+  if (isReady && user && loginSource === 'admin' && (isAdmin() || hasPermission('access_admin'))) {
     return <Navigate to={from} replace />
   }
 
   const onSubmit = async (data: FormData) => {
     setLoading(true)
     try {
-      await login(data.usernameOrEmail, data.password)
-      // Sau login, useAuthStore.user đã cập nhật — check role
-      if (useAuthStore.getState().isAdmin()) {
+      await login(data.usernameOrEmail, data.password, 'admin')
+      // Sau login, useAuthStore.user đã cập nhật — check quyền vào admin site
+      const state = useAuthStore.getState()
+      if (state.isAdmin() || state.hasPermission('access_admin')) {
         toast.success('Đăng nhập quản trị thành công')
         navigate(from, { replace: true })
       } else {

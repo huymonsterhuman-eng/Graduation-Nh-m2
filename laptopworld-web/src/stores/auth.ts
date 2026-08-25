@@ -20,16 +20,26 @@ interface LoginResponse {
   user: AuthUser
 }
 
+/** Nguồn login — dùng để phân biệt session customer vs session admin. */
+export type LoginSource = 'admin' | 'customer'
+
 interface AuthState {
   user: AuthUser | null
   isReady: boolean
+  /**
+   * Nguồn login của session hiện tại.
+   * - `'admin'`: user login qua /admin/dang-nhap → được vào /admin/*
+   * - `'customer'`: user login qua /dang-nhap → KHÔNG vào được /admin/* (phải login lại qua form admin)
+   * - `null`: chưa login (hoặc session cũ trước khi có tracking này)
+   */
+  loginSource: LoginSource | null
   isAuthenticated: () => boolean
   hasRole: (role: string) => boolean
   isAdmin: () => boolean
   /** ADMIN bypass true. Ngược lại check user.permissions. */
   hasPermission: (perm: string) => boolean
   hasAnyPermission: (...perms: string[]) => boolean
-  login: (usernameOrEmail: string, password: string) => Promise<void>
+  login: (usernameOrEmail: string, password: string, source: LoginSource) => Promise<void>
   logout: () => Promise<void>
   loadCurrentUser: () => Promise<void>
   setUser: (u: AuthUser | null) => void
@@ -40,6 +50,7 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       user: null,
       isReady: false,
+      loginSource: null,
 
       isAuthenticated: () => !!get().user && !!tokenStorage.getAccess(),
 
@@ -71,7 +82,7 @@ export const useAuthStore = create<AuthState>()(
         return perms.some((p) => list.includes(p))
       },
 
-      login: async (usernameOrEmail, password) => {
+      login: async (usernameOrEmail, password, source) => {
         const { data } = await api.post<ApiResponse<LoginResponse>>('/auth/login', {
           usernameOrEmail,
           password,
@@ -80,7 +91,7 @@ export const useAuthStore = create<AuthState>()(
           throw new Error(data.message || 'Đăng nhập thất bại')
         }
         tokenStorage.set(data.data.accessToken, data.data.refreshToken)
-        set({ user: data.data.user, isReady: true })
+        set({ user: data.data.user, isReady: true, loginSource: source })
       },
 
       logout: async () => {
@@ -91,7 +102,7 @@ export const useAuthStore = create<AuthState>()(
           }
         } finally {
           tokenStorage.clear()
-          set({ user: null, isReady: true })
+          set({ user: null, isReady: true, loginSource: null })
         }
       },
 
@@ -106,11 +117,11 @@ export const useAuthStore = create<AuthState>()(
             set({ user: data.data, isReady: true })
           } else {
             tokenStorage.clear()
-            set({ user: null, isReady: true })
+            set({ user: null, isReady: true, loginSource: null })
           }
         } catch {
           tokenStorage.clear()
-          set({ user: null, isReady: true })
+          set({ user: null, isReady: true, loginSource: null })
         }
       },
 
@@ -118,7 +129,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'lw-auth',
-      partialize: (s) => ({ user: s.user }),  // token đã trong tokenStorage
+      partialize: (s) => ({ user: s.user, loginSource: s.loginSource }),  // token đã trong tokenStorage
     }
   )
 )
@@ -126,6 +137,6 @@ export const useAuthStore = create<AuthState>()(
 // Đăng ký listener khi Axios interceptor phát event logout
 if (typeof window !== 'undefined') {
   window.addEventListener('auth:logout', () => {
-    useAuthStore.setState({ user: null })
+    useAuthStore.setState({ user: null, loginSource: null })
   })
 }

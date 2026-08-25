@@ -15,6 +15,12 @@ public record LoginResponse(
             String email,
             String fullName,
             String avatar,
-            List<String> roles
+            List<String> roles,
+            /**
+             * List permission code (VD: "access_admin", "view_products").
+             * FE cần field này để `hasPermission()` gate đúng cho STAFF ngay sau login,
+             * không phải chờ call /auth/me riêng.
+             */
+            List<String> permissions
     ) {}
 }

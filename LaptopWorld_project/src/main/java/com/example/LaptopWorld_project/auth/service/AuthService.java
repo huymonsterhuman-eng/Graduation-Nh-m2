@@ -175,13 +175,20 @@ public class AuthService {
 
     // ==================== helpers ====================
     private LoginResponse.UserInfo toUserInfo(User user) {
+        // Collect distinct permission code tu tat ca role cua user (roles LAZY, EM van open)
+        var permissionCodes = user.getRoles().stream()
+                .flatMap(r -> r.getPermissions().stream())
+                .map(p -> p.getCode())
+                .distinct()
+                .toList();
         return new LoginResponse.UserInfo(
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
                 user.getFullName(),
                 user.getAvatar(),
-                user.getRoles().stream().map(Role::getName).toList()
+                user.getRoles().stream().map(Role::getName).toList(),
+                permissionCodes
         );
     }
 }
