@@ -4,6 +4,7 @@ import com.example.LaptopWorld_project.auth.UserPrincipal;
 import com.example.LaptopWorld_project.common.dto.ApiResponse;
 import com.example.LaptopWorld_project.common.dto.PagedResponse;
 import com.example.LaptopWorld_project.order.dto.CheckoutRequest;
+import com.example.LaptopWorld_project.order.dto.CheckoutResponse;
 import com.example.LaptopWorld_project.order.dto.OrderDetailDto;
 import com.example.LaptopWorld_project.order.dto.OrderListItemDto;
 import com.example.LaptopWorld_project.order.entity.OrderStatus;
@@ -27,11 +28,22 @@ public class OrderController {
     private final CheckoutService checkoutService;
     private final OrderService orderService;
 
-    @Operation(summary = "Đặt hàng từ giỏ hàng hiện tại")
+    @Operation(summary = "Đặt hàng từ giỏ hàng hiện tại — trả kèm paymentUrl nếu VNPay/MoMo")
     @PostMapping("/api/checkout")
-    public ApiResponse<OrderDetailDto> checkout(@AuthenticationPrincipal UserPrincipal me,
-                                                @Valid @RequestBody CheckoutRequest req) {
-        return ApiResponse.ok("Đặt hàng thành công", checkoutService.placeOrder(me.getId(), req));
+    public ApiResponse<CheckoutResponse> checkout(@AuthenticationPrincipal UserPrincipal me,
+                                                  @Valid @RequestBody CheckoutRequest req,
+                                                  jakarta.servlet.http.HttpServletRequest request) {
+        String clientIp = extractClientIp(request);
+        return ApiResponse.ok("Đặt hàng thành công",
+                checkoutService.placeOrder(me.getId(), req, clientIp));
+    }
+
+    private static String extractClientIp(jakarta.servlet.http.HttpServletRequest req) {
+        String xff = req.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) return xff.split(",")[0].trim();
+        String real = req.getHeader("X-Real-IP");
+        if (real != null && !real.isBlank()) return real;
+        return req.getRemoteAddr();
     }
 
     @Operation(summary = "Danh sách đơn của tôi (filter theo status)")

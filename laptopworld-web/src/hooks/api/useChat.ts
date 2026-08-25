@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { api, type ApiResponse } from '@/lib/api'
 
-export type ChatRole = 'user' | 'assistant' | 'system'
+export type ChatRole = 'user' | 'assistant' | 'system' | 'tool'
 
 export interface ChatMessage {
   id: number

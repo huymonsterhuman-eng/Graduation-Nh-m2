@@ -15,4 +15,8 @@ public interface UserVoucherRepository extends JpaRepository<UserVoucher, Long> 
 
     @EntityGraph(attributePaths = {"voucher"})
     List<UserVoucher> findByUserIdAndIsUsedFalseOrderByCreatedAtDesc(Long userId);
+
+    /** Toàn bộ voucher trong kho của user — cả đã dùng lẫn chưa. Dùng cho trang admin user detail. */
+    @EntityGraph(attributePaths = {"voucher"})
+    List<UserVoucher> findByUserIdOrderByCreatedAtDesc(Long userId);
 }

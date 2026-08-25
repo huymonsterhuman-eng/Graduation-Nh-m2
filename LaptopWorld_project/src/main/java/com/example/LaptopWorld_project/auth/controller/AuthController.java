@@ -2,6 +2,7 @@ package com.example.LaptopWorld_project.auth.controller;
 
 import com.example.LaptopWorld_project.auth.UserPrincipal;
 import com.example.LaptopWorld_project.auth.dto.*;
+import com.example.LaptopWorld_project.auth.ratelimit.AuthRateLimiter;
 import com.example.LaptopWorld_project.auth.service.AuthService;
 import com.example.LaptopWorld_project.auth.service.PasswordResetService;
 import com.example.LaptopWorld_project.common.dto.ApiResponse;
@@ -24,10 +25,13 @@ public class AuthController {
 
     private final AuthService authService;
     private final PasswordResetService passwordResetService;
+    private final AuthRateLimiter rateLimiter;
 
     @Operation(summary = "Đăng ký tài khoản mới (gửi email xác thực)")
     @PostMapping("/register")
-    public ApiResponse<Void> register(@Valid @RequestBody RegisterRequest req) {
+    public ApiResponse<Void> register(@Valid @RequestBody RegisterRequest req,
+                                      HttpServletRequest servletReq) {
+        rateLimiter.checkRegister(servletReq);
         authService.register(req);
         return ApiResponse.message("Đã gửi email xác thực, vui lòng kiểm tra hộp thư.");
     }
@@ -54,6 +58,7 @@ public class AuthController {
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest req,
                                             HttpServletRequest servletReq) {
+        rateLimiter.checkLogin(servletReq);
         return ApiResponse.ok(authService.login(req, servletReq));
     }
 
@@ -79,7 +84,9 @@ public class AuthController {
 
     @Operation(summary = "Yêu cầu đặt lại mật khẩu — gửi email reset")
     @PostMapping("/forgot-password")
-    public ApiResponse<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest req) {
+    public ApiResponse<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest req,
+                                            HttpServletRequest servletReq) {
+        rateLimiter.checkForgotPassword(servletReq);
         passwordResetService.requestReset(req.email());
         return ApiResponse.message("Nếu email tồn tại trong hệ thống, một email đặt lại mật khẩu đã được gửi đi.");
     }

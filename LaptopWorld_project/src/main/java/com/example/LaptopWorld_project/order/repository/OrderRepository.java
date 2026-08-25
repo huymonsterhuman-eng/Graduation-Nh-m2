@@ -36,6 +36,20 @@ public interface OrderRepository extends JpaRepository<Order, Long>,
 
     long countByStatus(OrderStatus status);
 
+    long countByUserId(Long userId);
+
+    /**
+     * Tổng chi tiêu của user — tính theo các đơn đã ở trạng thái delivered.
+     * Trả 0 khi user chưa có đơn delivered nào (COALESCE trong JPQL).
+     */
+    @Query("""
+            SELECT COALESCE(SUM(o.total), 0)
+            FROM Order o
+            WHERE o.user.id = :userId
+              AND o.status  = com.example.LaptopWorld_project.order.entity.OrderStatus.delivered
+            """)
+    java.math.BigDecimal sumDeliveredTotalByUserId(Long userId);
+
     /**
      * User có đơn nào chứa sản phẩm này và đã ở trạng thái delivered chưa?
      * Dùng để chặn review khi khách chưa từng mua & nhận hàng.

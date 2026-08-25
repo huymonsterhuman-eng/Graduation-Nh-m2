@@ -47,7 +47,7 @@ public class PasswordResetService {
             tokenRepo.save(token);
 
             String link = appProperties.frontend().url()
-                    + "/reset-password?token=" + rawToken;
+                    + "/reset-mat-khau/" + rawToken;
 
             mailService.sendHtml(
                     user.getEmail(),

@@ -177,17 +177,39 @@ export interface EmbedResult {
   failed?: number
 }
 
+export interface EmbeddingStats {
+  activeProducts: number
+  embedded: number
+  pending: number
+}
+
+export function useEmbeddingStats() {
+  return useQuery({
+    queryKey: ['admin', 'ai', 'embedding-stats'],
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data } = await api.get<ApiResponse<EmbeddingStats>>('/admin/ai/embedding-stats')
+      return data.data
+    },
+  })
+}
+
 export function useReembedProduct() {
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: async (id: number) => {
       const { data } = await api.post<ApiResponse<EmbedResult>>(`/admin/ai/embed-products/${id}`)
       if (!data.success) throw new Error(data.message || 'Re-embed thất bại')
       return data.data
     },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'ai', 'embedding-stats'] })
+    },
   })
 }
 
 export function useReembedAll() {
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: async (force = false) => {
       const { data } = await api.post<ApiResponse<EmbedResult>>(
@@ -195,6 +217,9 @@ export function useReembedAll() {
       )
       if (!data.success) throw new Error(data.message || 'Embed thất bại')
       return data.data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'ai', 'embedding-stats'] })
     },
   })
 }

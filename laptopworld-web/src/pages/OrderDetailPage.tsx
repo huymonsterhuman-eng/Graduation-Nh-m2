@@ -180,9 +180,36 @@ export function OrderDetailPage() {
             <span>Tổng cộng</span>
             <span className="text-primary">{formatPrice(order.total)}</span>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Thanh toán: {order.paymentMethod.toUpperCase()} — {order.paymentStatus === 'paid' ? 'Đã thanh toán' : order.paymentStatus === 'unpaid' ? 'Chưa thanh toán' : 'Đã hoàn tiền'}
-          </p>
+          <div className="space-y-1 border-t pt-3 text-xs">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Phương thức</span>
+              <span className="font-medium">{order.paymentMethod.toUpperCase()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Trạng thái TT</span>
+              <span className={
+                order.paymentStatus === 'paid' ? 'font-semibold text-emerald-600 dark:text-emerald-400'
+                : order.paymentStatus === 'refunded' ? 'font-semibold text-sky-600 dark:text-sky-400'
+                : 'font-semibold text-amber-600 dark:text-amber-400'
+              }>
+                {order.paymentStatus === 'paid' ? '✓ Đã thanh toán'
+                 : order.paymentStatus === 'refunded' ? 'Đã hoàn tiền'
+                 : 'Chưa thanh toán'}
+              </span>
+            </div>
+            {order.paymentTransactionRef && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Mã GD VNPay</span>
+                <span className="font-mono text-[11px]">{order.paymentTransactionRef}</span>
+              </div>
+            )}
+            {order.paidAt && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Ngày thanh toán</span>
+                <span>{new Date(order.paidAt).toLocaleString('vi-VN')}</span>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 

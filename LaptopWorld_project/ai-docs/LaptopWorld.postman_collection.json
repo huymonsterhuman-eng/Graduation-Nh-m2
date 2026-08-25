@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "LaptopWorld API",
-    "description": "Full API collection cho backend LaptopWorld — Phase 2 (Auth) + Phase 3 (Catalog + Media) + Phase 4 (Address + Cart + Voucher + Order).\n\n**Cách dùng:**\n1. Import → sửa collection var `email`, `password`, `filePathToUpload`.\n2. Chạy `Auth / Login as admin` hoặc `Auth / Login as user` — token tự lưu vào `accessToken` + `refreshToken`.\n3. Các request khác dùng token đã lưu.\n4. Order checkout: chạy sau khi đã có Address + có SP trong Cart.",
+    "description": "Full API collection cho backend LaptopWorld — Phase 2 (Auth) + Phase 3 (Catalog + Media) + Phase 4 (Address + Cart + Voucher + Order) + Phase 9 admin (Dashboard, Product mở rộng, Partners, Inventory, Banners, Reviews moderation, Blog, Roles, Users, AI ops, Create-order admin).\n\n**Cách dùng:**\n1. Import → sửa collection var `email`, `password`, `filePathToUpload`.\n2. Chạy `Auth / Login as admin` hoặc `Auth / Login as user` — token tự lưu vào `accessToken` + `refreshToken`.\n3. Các request khác dùng token đã lưu.\n4. Order checkout: chạy sau khi đã có Address + có SP trong Cart.\n5. Admin folder (11-22): cần login admin trước — dùng `01. Auth / Login as admin`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_postman_id": "laptopworld-full-collection"
   },
@@ -18,7 +18,19 @@
     { "key": "refreshToken", "value": "", "type": "string" },
     { "key": "orderCode", "value": "", "type": "string" },
     { "key": "orderId", "value": "", "type": "string" },
-    { "key": "filePathToUpload", "value": "C:/Users/huymo/Pictures/test.jpg", "type": "string" }
+    { "key": "filePathToUpload", "value": "C:/Users/huymo/Pictures/test.jpg", "type": "string" },
+    { "key": "partnerId", "value": "1", "type": "string" },
+    { "key": "receiptId", "value": "1", "type": "string" },
+    { "key": "issueId", "value": "1", "type": "string" },
+    { "key": "voucherId", "value": "1", "type": "string" },
+    { "key": "bannerId", "value": "1", "type": "string" },
+    { "key": "reviewId", "value": "1", "type": "string" },
+    { "key": "postCategoryId", "value": "1", "type": "string" },
+    { "key": "postId", "value": "1", "type": "string" },
+    { "key": "roleId", "value": "2", "type": "string" },
+    { "key": "userId", "value": "2", "type": "string" },
+    { "key": "productId", "value": "1", "type": "string" },
+    { "key": "chatSessionId", "value": "1", "type": "string" }
   ],
   "item": [
     {
@@ -181,7 +193,150 @@
         { "name": "[Admin] order detail", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/orders/{{orderId}}" }},
         { "name": "[Admin] confirm order", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/orders/{{orderId}}/status", "body": { "mode": "raw", "raw": "{\n  \"status\": \"confirmed\",\n  \"adminNote\": \"Đã liên hệ khách xác nhận\"\n}" }}},
         { "name": "[Admin] ship order + tracking", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/orders/{{orderId}}/status", "body": { "mode": "raw", "raw": "{\n  \"status\": \"shipping\",\n  \"trackingNumber\": \"GHN-123456789\"\n}" }}},
-        { "name": "[Admin] mark delivered", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/orders/{{orderId}}/status", "body": { "mode": "raw", "raw": "{\n  \"status\": \"delivered\"\n}" }}}
+        { "name": "[Admin] mark delivered", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/orders/{{orderId}}/status", "body": { "mode": "raw", "raw": "{\n  \"status\": \"delivered\"\n}" }}},
+        { "name": "[Admin] order status counts (tabs)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/orders/status-counts" }},
+        { "name": "[Admin] create order (thay khách)", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/orders", "body": { "mode": "raw", "raw": "{\n  \"userId\": {{userId}},\n  \"paymentMethod\": \"cod\",\n  \"shippingMethod\": \"standard\",\n  \"shippingFee\": 30000,\n  \"shippingName\": \"Nguyễn Văn A\",\n  \"shippingPhone\": \"0912345678\",\n  \"shippingAddress\": \"123 Nguyễn Văn Cừ, P4, Q5, TP.HCM\",\n  \"items\": [ { \"productId\": {{productId}}, \"quantity\": 1 } ]\n}" }}},
+        { "name": "[Admin] search users (picker tạo đơn)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/users/search?keyword=user" }},
+        { "name": "[Admin] get address of user (picker)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/addresses/of-user/{{userId}}" }}
+      ]
+    },
+    {
+      "name": "11. Admin — Dashboard (Sprint 9B)",
+      "item": [
+        { "name": "Pending counts (sidebar badge)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/pending-counts" }},
+        { "name": "KPI 6 số (7 ngày)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/dashboard/kpi?range=7d" }},
+        { "name": "Revenue timeseries (30 ngày, bucket day)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/dashboard/revenue-timeseries?range=30d" }},
+        { "name": "Stock movement (nhập vs bán)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/dashboard/stock-movement?range=30d" }},
+        { "name": "Sales by category (pie chart)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/dashboard/sales-by-category?range=30d" }},
+        { "name": "Top products", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/dashboard/top-products?range=30d&limit=10" }},
+        { "name": "Dead stock (SP không bán)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/dashboard/dead-stock?limit=10" }},
+        { "name": "Low rated products", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/dashboard/low-rated?limit=10" }},
+        { "name": "Latest orders (widget)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/dashboard/latest-orders?limit=8" }},
+        { "name": "Chatbot stats (4 KPI)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/dashboard/chatbot-stats?range=30d" }},
+        { "name": "Chatbot top questions", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/dashboard/chatbot-top-questions?range=30d&limit=10" }}
+      ]
+    },
+    {
+      "name": "12. Admin — Product mở rộng (Sprint 9D)",
+      "item": [
+        { "name": "GET list deleted (soft-delete)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/products/deleted" }},
+        { "name": "PATCH toggle isActive (inline switch)", "request": { "method": "PATCH", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/products/{{productId}}/active", "body": { "mode": "raw", "raw": "{\n  \"isActive\": false\n}" }}},
+        { "name": "Restore soft-deleted product", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/products/{{productId}}/restore" }},
+        { "name": "Filter by stockStatus (LOW/CRITICAL/OUT)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/products?stockStatus=LOW_STOCK&page=0&size=10" }}
+      ]
+    },
+    {
+      "name": "13. Admin — Partners (Sprint 9E)",
+      "item": [
+        { "name": "List partners (all)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/partners" }},
+        { "name": "List partners by type", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/partners?type=shipping_provider" }},
+        { "name": "Get partner detail", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/partners/{{partnerId}}" }},
+        { "name": "Create partner (NCC)", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/partners", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Nhà cung cấp XYZ\",\n  \"code\": \"XYZ\",\n  \"type\": \"supplier\",\n  \"phone\": \"0900000000\",\n  \"email\": \"contact@xyz.vn\",\n  \"address\": \"Hà Nội\"\n}" }}},
+        { "name": "Update partner", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/partners/{{partnerId}}", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Nhà cung cấp XYZ (Update)\",\n  \"phone\": \"0911111111\"\n}" }}},
+        { "name": "Delete partner", "request": { "method": "DELETE", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/partners/{{partnerId}}" }}
+      ]
+    },
+    {
+      "name": "14. Admin — Goods Receipts (Sprint 9E)",
+      "item": [
+        { "name": "List receipts", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/goods-receipts?page=0&size=20" }},
+        { "name": "Get receipt detail", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/goods-receipts/{{receiptId}}" }},
+        { "name": "Create receipt (nhập kho, tăng stock)", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/goods-receipts", "body": { "mode": "raw", "raw": "{\n  \"partnerId\": {{partnerId}},\n  \"note\": \"Nhập lô test\",\n  \"items\": [\n    { \"productId\": {{productId}}, \"quantity\": 5, \"importPrice\": 15000000 }\n  ]\n}" }}}
+      ]
+    },
+    {
+      "name": "15. Admin — Inventory + Goods Issues (Sprint 9E FIFO)",
+      "item": [
+        { "name": "Get product batches (FIFO view)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/inventory/products/{{productId}}/batches" }},
+        { "name": "List goods issues (all)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/goods-issues?page=0&size=20" }},
+        { "name": "List by type + status (tab Auto pending)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/goods-issues?type=auto&status=pending" }},
+        { "name": "Get issue detail", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/goods-issues/{{issueId}}" }},
+        { "name": "Counts (badge tabs)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/goods-issues/counts" }},
+        { "name": "Approve issue (kho duyệt, sinh tracking cho auto)", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/goods-issues/{{issueId}}/approve", "body": { "mode": "raw", "raw": "{\n  \"shippingPartnerId\": {{partnerId}}\n}" }}},
+        { "name": "Reject issue (kho từ chối)", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/goods-issues/{{issueId}}/reject", "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Hàng chưa về kịp\"\n}" }}},
+        { "name": "Create manual issue (admin tự tạo phiếu)", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/goods-issues", "body": { "mode": "raw", "raw": "{\n  \"note\": \"Xuất mẫu marketing\",\n  \"items\": [ { \"productId\": {{productId}}, \"quantity\": 1 } ]\n}" }}}
+      ]
+    },
+    {
+      "name": "16. Admin — Banners (Sprint 9F)",
+      "item": [
+        { "name": "List banners (admin, all)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/banners" }},
+        { "name": "Get banner detail", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/banners/{{bannerId}}" }},
+        { "name": "Create banner", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/banners", "body": { "mode": "raw", "raw": "{\n  \"title\": \"Khuyến mãi hè\",\n  \"image\": \"/uploads/banners/summer.jpg\",\n  \"link\": \"/danh-muc/laptop\",\n  \"sortOrder\": 1,\n  \"isActive\": true\n}" }}},
+        { "name": "Update banner", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/banners/{{bannerId}}", "body": { "mode": "raw", "raw": "{\n  \"title\": \"Khuyến mãi hè (Update)\",\n  \"isActive\": false\n}" }}},
+        { "name": "Delete banner", "request": { "method": "DELETE", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/banners/{{bannerId}}" }},
+        { "name": "Public: list active banners (user site)", "request": { "method": "GET", "url": "{{baseUrl}}/api/banners" }}
+      ]
+    },
+    {
+      "name": "17. Admin — Reviews Moderation (Sprint 9F)",
+      "item": [
+        { "name": "List reviews (admin, filter isHidden)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/reviews?isHidden=false&page=0&size=20" }},
+        { "name": "Toggle hide (ẩn/hiện review)", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/reviews/{{reviewId}}/hide", "body": { "mode": "raw", "raw": "{\n  \"isHidden\": true\n}" }}},
+        { "name": "Admin reply (thêm/sửa phản hồi)", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/reviews/{{reviewId}}/reply", "body": { "mode": "raw", "raw": "{\n  \"adminReply\": \"Cảm ơn bạn đã đánh giá! Chúng tôi ghi nhận và cải thiện.\"\n}" }}},
+        { "name": "Delete review", "request": { "method": "DELETE", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/reviews/{{reviewId}}" }}
+      ]
+    },
+    {
+      "name": "18. Admin — Blog (Sprint 9F)",
+      "item": [
+        { "name": "PostCategories: list (admin)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/post-categories" }},
+        { "name": "PostCategories: create", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/post-categories", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Đánh giá sản phẩm\",\n  \"description\": \"Danh mục bài đánh giá\"\n}" }}},
+        { "name": "PostCategories: update", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/post-categories/{{postCategoryId}}", "body": { "mode": "raw", "raw": "{\n  \"name\": \"Đánh giá sản phẩm (Update)\"\n}" }}},
+        { "name": "PostCategories: delete (guard nếu còn post)", "request": { "method": "DELETE", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/post-categories/{{postCategoryId}}" }},
+        { "name": "Posts: list (admin, filter keyword+category+isPublished)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/posts?keyword=laptop&isPublished=true&page=0&size=20" }},
+        { "name": "Posts: detail", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/posts/{{postId}}" }},
+        { "name": "Posts: create draft", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/posts", "body": { "mode": "raw", "raw": "{\n  \"title\": \"Top 5 laptop văn phòng 2026\",\n  \"excerpt\": \"Gợi ý laptop cho dân văn phòng ngân sách hợp lý.\",\n  \"content\": \"<p>Nội dung TipTap...</p>\",\n  \"categoryId\": {{postCategoryId}},\n  \"isPublished\": false\n}" }}},
+        { "name": "Posts: update + publish", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/posts/{{postId}}", "body": { "mode": "raw", "raw": "{\n  \"title\": \"Top 5 laptop văn phòng 2026 (Update)\",\n  \"isPublished\": true\n}" }}},
+        { "name": "Posts: delete", "request": { "method": "DELETE", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/posts/{{postId}}" }},
+        { "name": "Public: list posts (user site)", "request": { "method": "GET", "url": "{{baseUrl}}/api/blog/posts?keyword=laptop&page=0&size=10" }},
+        { "name": "Public: post detail by slug (auto tăng views)", "request": { "method": "GET", "url": "{{baseUrl}}/api/blog/posts/top-5-laptop-van-phong-2026" }}
+      ]
+    },
+    {
+      "name": "19. Admin — Roles & Permissions (Sprint 9G-perm)",
+      "item": [
+        { "name": "List roles (kèm permissionCount + userCount)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/roles" }},
+        { "name": "Role detail (kèm list permission codes)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/roles/{{roleId}}" }},
+        { "name": "List 30 permissions (kèm label + groupName)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/roles/permissions" }},
+        { "name": "Create role (Nhân viên bán hàng)", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/roles", "body": { "mode": "raw", "raw": "{\n  \"name\": \"SALE\",\n  \"description\": \"Nhân viên bán hàng — xem/xử lý đơn\",\n  \"permissions\": [ \"access_admin\", \"view_orders\", \"manage_orders\", \"view_reports\" ]\n}" }}},
+        { "name": "Update role (sửa mô tả + đổi permissions)", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/roles/{{roleId}}", "body": { "mode": "raw", "raw": "{\n  \"name\": \"SALE\",\n  \"description\": \"Nhân viên bán hàng (Update)\",\n  \"permissions\": [ \"access_admin\", \"view_orders\", \"manage_orders\", \"view_products\", \"view_reports\" ]\n}" }}},
+        { "name": "Delete role (chặn ADMIN + chặn nếu còn user)", "request": { "method": "DELETE", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/roles/{{roleId}}" }}
+      ]
+    },
+    {
+      "name": "20. Admin — Users (Sprint 9G Bước A+B)",
+      "item": [
+        { "name": "List users (filter keyword/status/roleId)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/users?keyword=user&status=active&page=0&size=20" }},
+        { "name": "Stats (5 KPI cho trang list)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/users/stats" }},
+        { "name": "User detail (kèm orderCount/reviewCount/totalSpent)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/users/{{userId}}" }},
+        { "name": "User orders (tab Lịch sử mua hàng)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/users/{{userId}}/orders?page=0&size=20" }},
+        { "name": "User reviews (tab Đánh giá)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/users/{{userId}}/reviews" }},
+        { "name": "User vouchers (tab Kho voucher)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/users/{{userId}}/vouchers" }},
+        { "name": "Create user (admin nhập password, auto verified)", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/users", "body": { "mode": "raw", "raw": "{\n  \"username\": \"sale01\",\n  \"email\": \"sale01@laptopworld.vn\",\n  \"password\": \"Passw0rd!\",\n  \"fullName\": \"Nhân viên Sale 01\",\n  \"phone\": \"0900000001\",\n  \"gender\": \"male\",\n  \"status\": \"active\",\n  \"roleIds\": [ {{roleId}} ]\n}" }}},
+        { "name": "Update user (chỉ profile — không username/email/password)", "request": { "method": "PUT", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/users/{{userId}}", "body": { "mode": "raw", "raw": "{\n  \"fullName\": \"Nhân viên Sale 01 (Update)\",\n  \"phone\": \"0911111111\"\n}" }}},
+        { "name": "Set status (active|banned|unverified) — guard CANNOT_BAN_SELF + LAST_ADMIN_LOCKED", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/users/{{userId}}/status", "body": { "mode": "raw", "raw": "{\n  \"status\": \"banned\"\n}" }}},
+        { "name": "Set roles (guard CANNOT_REMOVE_OWN_ADMIN + LAST_ADMIN_LOCKED)", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/admin/users/{{userId}}/roles", "body": { "mode": "raw", "raw": "{\n  \"roleIds\": [ {{roleId}} ]\n}" }}}
+      ]
+    },
+    {
+      "name": "21. Admin — AI Ops (Sprint 9G Bước C+D)",
+      "item": [
+        { "name": "Embedding stats (activeProducts/embedded/pending)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/ai/embedding-stats" }},
+        { "name": "Embed sản phẩm mới (force=false)", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/ai/embed-products?force=false" }},
+        { "name": "Re-embed toàn bộ (force=true — tốn quota Gemini)", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/ai/embed-products?force=true" }},
+        { "name": "Re-embed 1 SP", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/ai/embed-products/{{productId}}" }},
+        { "name": "List chat sessions (filter loggedIn + date)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/ai/chat-sessions?loggedIn=true&page=0&size=20" }},
+        { "name": "List chat sessions (guest only)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/ai/chat-sessions?loggedIn=false" }},
+        { "name": "Chat session detail (info + messages theo thời gian)", "request": { "method": "GET", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"}], "url": "{{baseUrl}}/api/admin/ai/chat-sessions/{{chatSessionId}}" }}
+      ]
+    },
+    {
+      "name": "22. Payment — VNPay (Phase 10)",
+      "item": [
+        { "name": "Checkout với VNPay (auto trả paymentUrl)", "request": { "method": "POST", "header": [{"key":"Authorization","value":"Bearer {{accessToken}}"},{"key":"Content-Type","value":"application/json"}], "url": "{{baseUrl}}/api/checkout", "body": { "mode": "raw", "raw": "{\n  \"addressId\": 1,\n  \"paymentMethod\": \"vnpay\",\n  \"shippingMethod\": \"standard\",\n  \"shippingFee\": 30000,\n  \"customerNote\": \"Test VNPay sandbox\"\n}" }}, "description": "Body giống COD checkout nhưng paymentMethod=vnpay. Response có kèm paymentUrl bắt đầu bằng https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?vnp_Amount=...&vnp_SecureHash=... — mở trên browser để test luồng thanh toán thật với thẻ NCB 9704198526191432198 OTP 123456." },
+        { "name": "Return URL (khách redirect về, verify hash)", "request": { "method": "GET", "url": "{{baseUrl}}/api/payments/vnpay/return?vnp_TxnRef={{orderCode}}&vnp_ResponseCode=00&vnp_TransactionStatus=00&vnp_TransactionNo=14538100&vnp_Amount=100000000&vnp_SecureHash=FAKE_HASH_FOR_TEST" }, "description": "Endpoint public — không cần Bearer token, backend verify HMAC-SHA512 checksum. Với hash fake sẽ trả checksumValid=false. Với hash thật (từ VNPay redirect) sẽ trả success=true và JSON payload cho FE hiển thị page kết quả." },
+        { "name": "IPN callback (VNPay server-to-server, verify + update DB)", "request": { "method": "GET", "url": "{{baseUrl}}/api/payments/vnpay/ipn?vnp_TxnRef={{orderCode}}&vnp_ResponseCode=00&vnp_TransactionStatus=00&vnp_TransactionNo=14538100&vnp_Amount=100000000&vnp_SecureHash=FAKE_HASH_FOR_TEST" }, "description": "Public endpoint VNPay gọi để confirm thanh toán. Response format {RspCode, Message} — 00=success, 97=invalid checksum, 01=order not found, 04=invalid amount, 02=already confirmed. Đây là nguồn tin cậy update orders.payment_status=paid + paymentTransactionRef + paidAt." }
       ]
     }
   ]

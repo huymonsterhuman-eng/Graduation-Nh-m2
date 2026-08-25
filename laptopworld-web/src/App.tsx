@@ -17,6 +17,7 @@ import { ComparePage } from '@/pages/ComparePage'
 import { CartPage } from '@/pages/CartPage'
 import { CheckoutPage } from '@/pages/CheckoutPage'
 import { ThankYouPage } from '@/pages/ThankYouPage'
+import { VnpayReturnPage } from '@/pages/VnpayReturnPage'
 import { AccountLayout } from '@/components/layout/AccountLayout'
 import { AccountPage } from '@/pages/AccountPage'
 import { AddressBookPage } from '@/pages/AddressBookPage'
@@ -58,6 +59,11 @@ import { AdminPostsPage } from '@/pages/admin/AdminPostsPage'
 import { AdminPostFormPage } from '@/pages/admin/AdminPostFormPage'
 import { AdminRolesPage } from '@/pages/admin/AdminRolesPage'
 import { AdminRoleFormPage } from '@/pages/admin/AdminRoleFormPage'
+import { AdminUsersPage } from '@/pages/admin/AdminUsersPage'
+import { AdminUserDetailPage } from '@/pages/admin/AdminUserDetailPage'
+import { AdminUserFormPage } from '@/pages/admin/AdminUserFormPage'
+import { AdminAiEmbeddingPage } from '@/pages/admin/AdminAiEmbeddingPage'
+import { AdminAiChatSessionsPage } from '@/pages/admin/AdminAiChatSessionsPage'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -107,6 +113,7 @@ function App() {
             <Route path="/gio-hang" element={<ProtectedRoute><CartPage /></ProtectedRoute>} />
             <Route path="/dat-hang" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
             <Route path="/dat-hang/thanh-cong/:code" element={<ProtectedRoute><ThankYouPage /></ProtectedRoute>} />
+            <Route path="/thanh-toan/vnpay/ket-qua" element={<ProtectedRoute><VnpayReturnPage /></ProtectedRoute>} />
 
             {/* Account với sidebar layout — protected */}
             <Route
@@ -173,11 +180,14 @@ function App() {
             <Route path="danh-gia" element={<AdminReviewsPage />} />
 
             {/* AI */}
-            <Route path="ai/embedding" element={<AdminPlaceholderPage title="Embedding" sprint="Sprint 9G" />} />
-            <Route path="ai/chat" element={<AdminPlaceholderPage title="Chat sessions" sprint="Sprint 9G" />} />
+            <Route path="ai/embedding" element={<AdminAiEmbeddingPage />} />
+            <Route path="ai/chat" element={<AdminAiChatSessionsPage />} />
 
             {/* Hệ thống */}
-            <Route path="nguoi-dung" element={<AdminPlaceholderPage title="Người dùng" sprint="Sprint 9G" />} />
+            <Route path="nguoi-dung" element={<AdminUsersPage />} />
+            <Route path="nguoi-dung/moi" element={<AdminUserFormPage />} />
+            <Route path="nguoi-dung/:id/sua" element={<AdminUserFormPage />} />
+            <Route path="nguoi-dung/:id" element={<AdminUserDetailPage />} />
             <Route path="vai-tro" element={<AdminRolesPage />} />
             <Route path="vai-tro/moi" element={<AdminRoleFormPage />} />
             <Route path="vai-tro/:id/sua" element={<AdminRoleFormPage />} />

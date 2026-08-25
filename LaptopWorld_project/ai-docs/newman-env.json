@@ -1,0 +1,31 @@
+{
+  "id": "laptopworld-env",
+  "name": "LaptopWorld dev",
+  "values": [
+    { "key": "baseUrl",  "value": "http://localhost:8080", "enabled": true },
+    { "key": "username", "value": "admin",                 "enabled": true },
+    { "key": "email",    "value": "admin@laptopworld.local","enabled": true },
+    { "key": "password", "value": "admin123",              "enabled": true },
+    { "key": "fullName", "value": "System Admin",          "enabled": true },
+    { "key": "newPassword",  "value": "NewPass123",        "enabled": true },
+    { "key": "accessToken",  "value": "",                  "enabled": true },
+    { "key": "refreshToken", "value": "",                  "enabled": true },
+    { "key": "verifyToken",  "value": "",                  "enabled": true },
+    { "key": "resetToken",   "value": "",                  "enabled": true },
+    { "key": "productId",       "value": "1", "enabled": true },
+    { "key": "orderId",         "value": "1", "enabled": true },
+    { "key": "orderCode",       "value": "ORD-DEMO-001", "enabled": true },
+    { "key": "userId",          "value": "1", "enabled": true },
+    { "key": "roleId",          "value": "1", "enabled": true },
+    { "key": "chatSessionId",   "value": "1", "enabled": true },
+    { "key": "reviewId",        "value": "1", "enabled": true },
+    { "key": "bannerId",        "value": "1", "enabled": true },
+    { "key": "postId",          "value": "1", "enabled": true },
+    { "key": "postCategoryId",  "value": "1", "enabled": true },
+    { "key": "partnerId",       "value": "1", "enabled": true },
+    { "key": "receiptId",       "value": "1", "enabled": true },
+    { "key": "issueId",         "value": "1", "enabled": true },
+    { "key": "filePathToUpload","value": "",  "enabled": true }
+  ],
+  "_postman_variable_scope": "environment"
+}

@@ -169,6 +169,76 @@ export interface RoleDetail {
   updatedAt: string
 }
 
+// ==================== Admin Users ====================
+export type AdminUserStatus = 'active' | 'banned' | 'unverified'
+
+export interface AdminUserListItem {
+  id: number
+  username: string
+  email: string
+  emailVerified: boolean
+  fullName?: string
+  phone?: string
+  avatar?: string
+  status: AdminUserStatus
+  roleNames: string[]
+  createdAt: string
+}
+
+export interface AdminUserRoleRef {
+  id: number
+  name: string
+  description?: string
+}
+
+export interface AdminUserStats {
+  orderCount: number
+  reviewCount: number
+  totalSpent: number
+}
+
+export interface AdminUserVoucherItem {
+  id: number
+  code: string
+  name: string
+  type: 'fixed' | 'percent'
+  discountAmount: number
+  minOrderValue: number
+  maxDiscount?: number | null
+  startedAt?: string
+  expiresAt?: string
+  isUsed: boolean
+  usedAt?: string
+  orderId?: number | null
+  savedAt: string
+}
+
+export interface AdminUserStatsSummary {
+  total: number
+  active: number
+  banned: number
+  unverified: number
+  newThisWeek: number
+}
+
+export interface AdminUserDetail {
+  id: number
+  username: string
+  email: string
+  emailVerified: boolean
+  emailVerifiedAt?: string
+  fullName?: string
+  phone?: string
+  avatar?: string
+  gender?: string
+  birthday?: string
+  status: AdminUserStatus
+  roles: AdminUserRoleRef[]
+  stats: AdminUserStats
+  createdAt: string
+  updatedAt: string
+}
+
 // ==================== Banner ====================
 export interface Banner {
   id: number
@@ -336,11 +406,30 @@ export interface OrderDetail {
   voucherCode?: string
   trackingNumber?: string
   adminNote?: string
+  paymentTransactionRef?: string
   preparingAt?: string
+  paidAt?: string
   deliveredAt?: string
   cancelledAt?: string
   createdAt: string
   items: OrderItem[]
+}
+
+/** Response từ POST /api/checkout — có kèm paymentUrl khi paymentMethod=vnpay. */
+export interface CheckoutResponse {
+  order: OrderDetail
+  paymentUrl?: string | null
+}
+
+/** Response từ GET /api/payments/vnpay/return — dùng ở VnpayReturnPage. */
+export interface VnpayReturnResult {
+  orderCode: string
+  responseCode: string
+  transactionStatus: string
+  transactionNo?: string
+  amount?: string
+  checksumValid: boolean
+  success: boolean
 }
 
 // ==================== Partner + Inventory (Sprint 9E) ====================

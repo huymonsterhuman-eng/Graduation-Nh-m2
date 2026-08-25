@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type ApiResponse } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
-import type { OrderDetail, OrderListItem, OrderStatus, PagedResponse, PaymentMethod } from '@/types/api'
+import type { CheckoutResponse, OrderDetail, OrderListItem, OrderStatus, PagedResponse, PaymentMethod, VnpayReturnResult } from '@/types/api'
 
 export interface CheckoutPayload {
   addressId: number
@@ -41,12 +41,27 @@ export function useCheckout() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (payload: CheckoutPayload) => {
-      const { data } = await api.post<ApiResponse<OrderDetail>>('/checkout', payload)
+      const { data } = await api.post<ApiResponse<CheckoutResponse>>('/checkout', payload)
       return data.data!
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['cart'] })
       qc.invalidateQueries({ queryKey: ['my-orders'] })
+    },
+  })
+}
+
+/** Verify + parse kết quả VNPay khi khách quay về từ cổng thanh toán. */
+export function useVnpayReturn(queryString: string) {
+  return useQuery({
+    queryKey: ['vnpay-return', queryString],
+    enabled: queryString.length > 0,
+    retry: false,
+    queryFn: async () => {
+      const { data } = await api.get<ApiResponse<VnpayReturnResult>>(
+        `/payments/vnpay/return${queryString}`
+      )
+      return data.data!
     },
   })
 }

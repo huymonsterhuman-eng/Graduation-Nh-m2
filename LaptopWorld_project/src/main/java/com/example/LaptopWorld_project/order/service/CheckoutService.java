@@ -5,7 +5,9 @@ import com.example.LaptopWorld_project.catalog.entity.ProductImage;
 import com.example.LaptopWorld_project.common.exception.BusinessException;
 import com.example.LaptopWorld_project.common.exception.ResourceNotFoundException;
 import com.example.LaptopWorld_project.order.dto.CheckoutRequest;
+import com.example.LaptopWorld_project.order.dto.CheckoutResponse;
 import com.example.LaptopWorld_project.order.dto.OrderDetailDto;
+import com.example.LaptopWorld_project.payment.vnpay.VnpayService;
 import com.example.LaptopWorld_project.order.entity.*;
 import com.example.LaptopWorld_project.order.mapper.OrderMapper;
 import com.example.LaptopWorld_project.order.repository.CartRepository;
@@ -40,13 +42,17 @@ public class CheckoutService {
     private final OrderCodeGenerator codeGenerator;
     private final OrderMapper orderMapper;
     private final com.example.LaptopWorld_project.catalog.repository.ProductRepository productRepository;
+    private final VnpayService vnpayService;
 
     /**
      * Đặt hàng từ giỏ hàng hiện tại.
      * Toàn bộ trong 1 transaction — bất kỳ bước fail nào rollback tất cả.
+     *
+     * Nếu paymentMethod=vnpay → sinh thêm paymentUrl để FE redirect sang cổng VNPay.
+     * IP client dùng để nhồi vào vnp_IpAddr (VNPay yêu cầu).
      */
     @Transactional
-    public OrderDetailDto placeOrder(Long userId, CheckoutRequest req) {
+    public CheckoutResponse placeOrder(Long userId, CheckoutRequest req, String clientIp) {
         // 1. Cart
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseThrow(() -> new BusinessException("EMPTY_CART", "Giỏ hàng trống"));
@@ -155,7 +161,14 @@ public class CheckoutService {
 
         log.info("Order placed: userId={} code={} total={}",
                 userId, saved.getCode(), saved.getTotal());
-        return orderMapper.toDetail(saved);
+
+        // 9. Nếu chọn VNPay → build paymentUrl để FE redirect. COD/khác → null.
+        String paymentUrl = null;
+        if (saved.getPaymentMethod() == PaymentMethod.vnpay) {
+            paymentUrl = vnpayService.createPaymentUrl(saved, clientIp);
+        }
+
+        return new CheckoutResponse(orderMapper.toDetail(saved), paymentUrl);
     }
 
     private Order saveWithUniqueCode(Order order) {

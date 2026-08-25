@@ -16,6 +16,7 @@ import {
 import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader'
 import { OrderStatusBadge } from '@/components/admin/common/OrderStatusBadge'
 import { useAdminOrderDetail, useUpdateOrderStatus } from '@/hooks/api/useAdminOrders'
+import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
 import { formatPrice, productImageSrc, formatDateTime } from '@/lib/format'
 import type { OrderStatus } from '@/types/api'
 
@@ -37,6 +38,7 @@ export function AdminOrderDetailPage() {
 
   const { data: order, isLoading } = useAdminOrderDetail(id)
   const update = useUpdateOrderStatus()
+  const { copy } = useCopyToClipboard()
 
   const [action, setAction] = useState<ActionKind>(null)
   const [trackingNumber, setTrackingNumber] = useState('')
@@ -50,10 +52,7 @@ export function AdminOrderDetailPage() {
   const isCancelled = order.status === 'cancelled'
   const isFinal = order.status === 'delivered' || order.status === 'cancelled'
 
-  const copyCode = async () => {
-    await navigator.clipboard.writeText(order.code)
-    toast.success('Đã sao chép mã đơn')
-  }
+  const copyCode = () => copy(order.code, `Đã sao chép mã ${order.code}`)
 
   const doAction = async (newStatus: OrderStatus, tracking?: string, note?: string) => {
     try {
@@ -157,7 +156,22 @@ export function AdminOrderDetailPage() {
               <InfoRow icon={Truck} label="PT vận chuyển" value={order.shippingMethod || '—'} />
               <InfoRow icon={Clock} label="Ngày đặt" value={formatDateTime(order.createdAt)} />
               {order.trackingNumber && (
-                <InfoRow icon={Truck} label="Mã vận đơn" value={order.trackingNumber} />
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">
+                    <Truck className="h-3 w-3" /> Mã vận đơn
+                  </div>
+                  <div className="mt-0.5 flex items-center gap-1 text-sm">
+                    <span className="font-mono">{order.trackingNumber}</span>
+                    <Button
+                      variant="ghost" size="icon"
+                      className="h-5 w-5 opacity-60 hover:opacity-100"
+                      title="Sao chép mã vận đơn"
+                      onClick={() => copy(order.trackingNumber!, 'Đã sao chép mã vận đơn')}
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
               )}
               {order.adminNote && (
                 <InfoRow icon={StickyNote} label="Ghi chú admin" value={order.adminNote} className="md:col-span-2" />
@@ -205,6 +219,45 @@ export function AdminOrderDetailPage() {
               <Row label="Tổng thanh toán" value={formatPrice(order.total)}
                 className="text-base font-bold text-primary" />
             </div>
+          </Card>
+
+          {/* Payment info */}
+          <Card className="space-y-2 p-4">
+            <h3 className="mb-2 text-sm font-semibold">Thanh toán</h3>
+            <Row label="Phương thức" value={order.paymentMethod.toUpperCase()} />
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Trạng thái</span>
+              <Badge className={
+                order.paymentStatus === 'paid'
+                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                : order.paymentStatus === 'refunded'
+                  ? 'bg-sky-500/15 text-sky-700 dark:text-sky-300'
+                  : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'
+              }>
+                {order.paymentStatus === 'paid' ? 'Đã thanh toán'
+                 : order.paymentStatus === 'refunded' ? 'Đã hoàn tiền'
+                 : 'Chưa thanh toán'}
+              </Badge>
+            </div>
+            {order.paymentTransactionRef && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Mã GD VNPay</span>
+                <span className="flex items-center gap-1 font-mono text-xs">
+                  {order.paymentTransactionRef}
+                  <Button
+                    variant="ghost" size="icon"
+                    className="h-5 w-5 opacity-60 hover:opacity-100"
+                    title="Sao chép mã giao dịch"
+                    onClick={() => copy(order.paymentTransactionRef!, 'Đã sao chép mã giao dịch')}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </span>
+              </div>
+            )}
+            {order.paidAt && (
+              <Row label="Ngày TT" value={formatDateTime(order.paidAt)} />
+            )}
           </Card>
 
           {/* Actions */}

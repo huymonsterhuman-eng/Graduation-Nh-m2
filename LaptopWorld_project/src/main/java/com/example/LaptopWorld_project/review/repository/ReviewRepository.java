@@ -14,6 +14,11 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     boolean existsByUserIdAndProductId(Long userId, Long productId);
 
+    long countByUserId(Long userId);
+
+    @EntityGraph(attributePaths = {"product"})
+    List<Review> findByUserIdOrderByCreatedAtDesc(Long userId);
+
     /** Review chưa bị ẩn — dùng cho public list. */
     @EntityGraph(attributePaths = {"user"})
     Page<Review> findByProductIdAndIsHiddenFalseOrderByCreatedAtDesc(Long productId, Pageable pageable);

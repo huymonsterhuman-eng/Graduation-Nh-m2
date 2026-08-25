@@ -76,7 +76,7 @@ export function CheckoutPage() {
       return
     }
     try {
-      const order = await checkout.mutateAsync({
+      const result = await checkout.mutateAsync({
         addressId,
         paymentMethod,
         shippingMethod,
@@ -84,7 +84,14 @@ export function CheckoutPage() {
         voucherCode: voucherResult?.valid ? voucherResult.code : undefined,
         customerNote: note || undefined,
       })
-      navigate(`/dat-hang/thanh-cong/${order.code}`, { replace: true })
+      // VNPay: redirect sang cổng thanh toán, chờ IPN + user quay về /thanh-toan/vnpay/ket-qua.
+      // COD/khác: qua thẳng trang cảm ơn.
+      if (result.paymentUrl) {
+        toast.success('Đang chuyển sang cổng VNPay...')
+        window.location.href = result.paymentUrl
+        return
+      }
+      navigate(`/dat-hang/thanh-cong/${result.order.code}`, { replace: true })
     } catch (e) {
       const err = e as AxiosError<ApiResponse<unknown>>
       toast.error(err.response?.data?.message || 'Đặt hàng thất bại')
@@ -192,12 +199,15 @@ export function CheckoutPage() {
                   <div className="text-xs text-muted-foreground">Trả tiền mặt cho shipper khi nhận hàng</div>
                 </div>
               </label>
-              <label className="flex items-center gap-3 rounded-md border border-dashed p-3 opacity-50">
-                <input type="radio" disabled />
-                <div>
-                  <div className="text-sm font-medium">VNPay (chưa khả dụng)</div>
-                  <div className="text-xs text-muted-foreground">Sẽ hỗ trợ ở Phase 10</div>
+              <label className={`flex cursor-pointer items-center gap-3 rounded-md border p-3 transition ${paymentMethod === 'vnpay' ? 'border-primary bg-primary/5' : 'hover:border-muted-foreground/30'}`}>
+                <input type="radio" checked={paymentMethod === 'vnpay'} onChange={() => setPaymentMethod('vnpay')} />
+                <div className="flex-1">
+                  <div className="text-sm font-medium">VNPay — Thẻ ATM/QR/Visa</div>
+                  <div className="text-xs text-muted-foreground">
+                    Chuyển sang cổng VNPay sandbox. Thẻ test NCB <span className="font-mono">9704198526191432198</span>, OTP <span className="font-mono">123456</span>.
+                  </div>
                 </div>
+                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Mới</span>
               </label>
             </CardContent>
           </Card>

@@ -78,8 +78,15 @@ public class Order extends BaseEntity {
     @Column(name = "admin_note", columnDefinition = "TEXT")
     private String adminNote;
 
+    /** vnp_TransactionNo — mã giao dịch VNPay trả về khi thanh toán thành công. */
+    @Column(name = "payment_transaction_ref", length = 50)
+    private String paymentTransactionRef;
+
     @Column(name = "preparing_at")
     private OffsetDateTime preparingAt;
+
+    @Column(name = "paid_at")
+    private OffsetDateTime paidAt;
 
     @Column(name = "delivered_at")
     private OffsetDateTime deliveredAt;

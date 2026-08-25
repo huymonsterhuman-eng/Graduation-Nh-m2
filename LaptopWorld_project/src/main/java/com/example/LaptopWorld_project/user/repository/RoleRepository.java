@@ -19,4 +19,18 @@ public interface RoleRepository extends JpaRepository<Role, Long> {
     @org.springframework.data.jpa.repository.Query(
         "SELECT COUNT(u) FROM User u JOIN u.roles r WHERE r.id = :roleId")
     long countUsersByRoleId(@org.springframework.data.repository.query.Param("roleId") Long roleId);
+
+    /**
+     * Đếm số user active đang mang role có tên cho trước — dùng để chặn
+     * LAST_ADMIN_LOCKED (không cho ban/gỡ vai trò của ADMIN cuối cùng).
+     * Chỉ đếm user status=active (banned/unverified không tính vì không login được).
+     */
+    @org.springframework.data.jpa.repository.Query("""
+            SELECT COUNT(DISTINCT u)
+            FROM User u JOIN u.roles r
+            WHERE r.name = :roleName
+              AND u.status = com.example.LaptopWorld_project.user.entity.UserStatus.active
+            """)
+    long countActiveUsersHavingRoleName(
+        @org.springframework.data.repository.query.Param("roleName") String roleName);
 }

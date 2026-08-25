@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Ticket, Plus, Pencil, Trash2, Search } from 'lucide-react'
+import { Ticket, Plus, Pencil, Trash2, Search, Copy } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,6 +19,7 @@ import {
 } from '@/hooks/api/useVouchers'
 import type { Voucher, VoucherType } from '@/types/api'
 import { formatPrice } from '@/lib/format'
+import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
 
 /** ISO string ↔ giá trị của <input type="datetime-local"> (không có TZ). */
 function isoToLocalInput(iso?: string | null): string {
@@ -107,6 +108,7 @@ export function AdminVouchersPage() {
   const create = useCreateVoucher()
   const update = useUpdateVoucher()
   const remove = useDeleteVoucher()
+  const { copy } = useCopyToClipboard()
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Voucher | null>(null)
@@ -182,10 +184,20 @@ export function AdminVouchersPage() {
 
   const columns: AdminColumn<Voucher>[] = [
     {
-      key: 'code', header: 'Mã', className: 'w-40',
+      key: 'code', header: 'Mã', className: 'w-44',
       cell: (v) => (
         <div className="space-y-1">
-          <Badge variant="outline" className="font-mono font-bold">{v.code}</Badge>
+          <div className="flex items-center gap-1">
+            <Badge variant="outline" className="font-mono font-bold">{v.code}</Badge>
+            <Button
+              variant="ghost" size="icon"
+              className="h-5 w-5 opacity-60 hover:opacity-100"
+              title="Sao chép mã voucher"
+              onClick={() => copy(v.code, `Đã sao chép mã ${v.code}`)}
+            >
+              <Copy className="h-3 w-3" />
+            </Button>
+          </div>
           <div className="text-xs text-muted-foreground line-clamp-1">{v.name}</div>
         </div>
       ),

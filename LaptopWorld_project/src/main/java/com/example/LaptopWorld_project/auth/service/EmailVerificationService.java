@@ -44,7 +44,7 @@ public class EmailVerificationService {
         tokenRepo.save(entity);
 
         String link = appProperties.frontend().url()
-                + "/verify-email?token=" + rawToken;
+                + "/xac-thuc-email/" + rawToken;
 
         mailService.sendHtml(
                 user.getEmail(),

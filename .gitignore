@@ -18,6 +18,8 @@ application-*-local.properties
 .env
 .env.*
 !.env.example
+# VNPay credentials (không commit)
+**/vnpayconfig.txt
 
 # Runtime
 uploads/

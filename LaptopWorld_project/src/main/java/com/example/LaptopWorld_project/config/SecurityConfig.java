@@ -106,8 +106,13 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/blog/**").permitAll()
                 // Public — banners active (Phase 7)
                 .requestMatchers(HttpMethod.GET, "/api/banners").permitAll()
-                // Admin
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                // Public — VNPay callback (return + IPN, Phase 10). VNPay không gửi
+                // JWT, chỉ verify bằng HMAC-SHA512 checksum ở VnpayService.
+                .requestMatchers(HttpMethod.GET, "/api/payments/vnpay/**").permitAll()
+                // Admin — chỉ yêu cầu đã đăng nhập. Việc phân quyền chi tiết
+                // (ADMIN bypass + hasAuthority('permission_code')) do @PreAuthorize
+                // ở từng controller/method xử lý (Sprint 9G-perm Bước 1).
+                .requestMatchers("/api/admin/**").authenticated()
                 // Con lai bat buoc auth
                 .anyRequest().authenticated()
             )

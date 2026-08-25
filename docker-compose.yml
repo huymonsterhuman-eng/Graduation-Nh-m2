@@ -1,0 +1,86 @@
+# ================================================================
+# LaptopWorld — Docker Compose full stack (PROD-ish)
+# 3 container: postgres + backend + frontend (Nginx)
+#
+# Chay:      docker compose up -d
+# Xem log:   docker compose logs -f
+# Dung:      docker compose down
+# Xoa hoan toan (mat data): docker compose down -v
+#
+# Truy cap: http://localhost (frontend Nginx serve + proxy API)
+# ================================================================
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: laptopworld_postgres
+    environment:
+      POSTGRES_DB: laptopworld
+      POSTGRES_USER: laptopworld_app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U laptopworld_app -d laptopworld"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    # Khong expose port ra host — chi backend truy cap qua internal network
+
+  backend:
+    build:
+      context: ./LaptopWorld_project
+      dockerfile: Dockerfile
+    container_name: laptopworld_backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Spring profile
+      SPRING_PROFILES_ACTIVE: prod
+      # DB
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: laptopworld
+      DB_USER: laptopworld_app
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+      # JWT (bat buoc >= 64 chars)
+      JWT_SECRET: ${JWT_SECRET}
+      # Frontend URL (cho CORS + link email)
+      APP_FRONTEND_URL: ${APP_FRONTEND_URL:-http://localhost}
+      # Gemini AI
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # VNPay sandbox
+      VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-}
+      VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:-}
+      VNPAY_RETURN_URL: ${VNPAY_RETURN_URL:-http://localhost/thanh-toan/vnpay/ket-qua}
+      # SMTP
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-noreply@laptopworld.local}
+      # Uploads path trong container
+      APP_UPLOAD_DIR: /app/uploads
+    volumes:
+      # Bind mount uploads — persist anh SP + banner giua restart
+      - ./LaptopWorld_project/uploads:/app/uploads
+    restart: unless-stopped
+    # Khong expose 8080 ra host — chi frontend Nginx proxy qua internal network
+
+  frontend:
+    build:
+      context: ./laptopworld-web
+      dockerfile: Dockerfile
+    container_name: laptopworld_frontend
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+    name: laptopworld_pgdata

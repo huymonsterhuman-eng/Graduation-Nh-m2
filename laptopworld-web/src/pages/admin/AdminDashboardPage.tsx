@@ -15,13 +15,79 @@ import { useDashboardKpi } from '@/hooks/api/useAdminDashboard'
 import { formatPrice, formatPriceCompact, formatDate } from '@/lib/format'
 import {
   LayoutDashboard, Banknote, ShoppingBag, UserPlus, Clock,
-  AlertTriangle, XCircle,
+  AlertTriangle, XCircle, Lock,
 } from 'lucide-react'
+import { ADMIN_NAV } from '@/components/admin/adminNav'
+import { Link } from 'react-router-dom'
 
 export function AdminDashboardPage() {
   const user = useAuthStore((s) => s.user)
+  const hasPermission = useAuthStore((s) => s.hasPermission)
+  const hasAnyPermission = useAuthStore((s) => s.hasAnyPermission)
+  const canViewReports = hasPermission('view_reports')
+
+  // ⚠️ Hooks phải gọi trước mọi conditional return (rules of hooks).
+  // Passing `enabled: canViewReports` để hook không fire khi không có quyền,
+  // tránh gọi API rồi bị 403.
   const [range, setRange] = useDashboardRange()
-  const { data: kpi, isLoading: kpiLoading } = useDashboardKpi(range)
+  const { data: kpi, isLoading: kpiLoading } = useDashboardKpi(range, canViewReports)
+
+  // Nếu user không có quyền xem báo cáo → không gọi API dashboard (tránh
+  // gọi rồi bị 403 rồi render KPI rỗng lạ mắt). Hiện empty state có ý nghĩa
+  // + gợi ý menu user có quyền để họ biết đi đâu.
+  if (!canViewReports) {
+    const availableItems = ADMIN_NAV
+      .flatMap((g) => g.items.map((it) => ({ ...it, groupTitle: g.title, groupEmoji: g.emoji })))
+      .filter((it) => it.to !== '/admin')
+      .filter((it) => {
+        if (it.requiredPermission) return hasPermission(it.requiredPermission)
+        if (it.requiredAnyPermission) return hasAnyPermission(...it.requiredAnyPermission)
+        return true
+      })
+
+    return (
+      <div className="mx-auto flex max-w-2xl flex-col items-center gap-4 py-16 text-center">
+        <div className="grid h-16 w-16 place-items-center rounded-full bg-amber-500/15">
+          <Lock className="h-8 w-8 text-amber-600" />
+        </div>
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold">Xin chào, {user?.fullName || user?.username} 👋</h1>
+          <p className="text-sm text-muted-foreground">
+            Bạn không có quyền xem báo cáo tổng (Dashboard). Chọn một mục bên dưới
+            để bắt đầu công việc, hoặc dùng menu bên trái.
+          </p>
+        </div>
+
+        {availableItems.length > 0 ? (
+          <div className="mt-4 grid w-full gap-2 sm:grid-cols-2">
+            {availableItems.map((it) => {
+              const Icon = it.icon
+              return (
+                <Link
+                  key={it.to}
+                  to={it.to}
+                  className="flex items-center gap-3 rounded-md border p-3 text-left transition hover:border-primary/50 hover:bg-accent"
+                >
+                  <Icon className="h-5 w-5 text-muted-foreground" />
+                  <div className="min-w-0">
+                    <div className="font-medium">{it.label}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {it.groupEmoji} {it.groupTitle}
+                    </div>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="rounded-md border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-800 dark:text-rose-300">
+            Tài khoản của bạn hiện không có quyền quản trị nào. Vui lòng liên hệ quản
+            trị viên để được cấp vai trò.
+          </div>
+        )}
+      </div>
+    )
+  }
 
   const rangeLabel = `${formatDate(range.from + 'T00:00:00Z')} → ${formatDate(range.to + 'T00:00:00Z')}`
 

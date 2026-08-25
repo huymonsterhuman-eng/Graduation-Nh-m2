@@ -2,7 +2,7 @@
 
 > **Đề tài:** Xây dựng hệ thống thương mại điện tử tích hợp trợ lý AI hỗ trợ tư vấn sản phẩm cho **LaptopWorld**.
 > **Loại:** Đồ án tốt nghiệp.
-> **Cập nhật:** 2026-08-23 (Gộp backend + frontend vào cùng git repo [Graduation-Nh-m2](https://github.com/huymonsterhuman-eng/Graduation-Nh-m2); Sprint 9F hoàn tất + polish UX round 1 — 6/8 sprint Phase 9 xong; đang làm Sprint 9G-perm phân quyền chi tiết — **Bước 0 + 1 + 2 xong**, còn Bước 3 (Test E2E)).
+> **Cập nhật:** 2026-08-25 (**Phase 11 ✅ HOÀN THÀNH** — 5 bước 11A→11E xong: 57 test tự động (41 unit + 16 integration Testcontainers) pass < 45s; Docker Compose 3 container end-to-end (`docker compose up -d` truy cập `http://localhost` OK, ảnh SP hiển thị); `AuthRateLimiter` chống brute-force login/register/forgot-password; [security-audit.md](security-audit.md) verify 0 IDOR + config prod hardened; V22 seed 5 user + 5 voucher + 10 order rải qua 6 status; Newman 154 request pass in 20.8s → [newman-report.html](newman-report.html) 2.8MB; [testcases.md](testcases.md) mở rộng từ 38 → 93 case cho báo cáo. **Hotfix cùng ngày ✅ HOÀN THÀNH (user đã verify STAFF login thành công):** (1) Tách bạch session admin/customer bằng field `loginSource` — 4 file FE (`auth.ts`, `LoginPage.tsx`, `AdminLoginPage.tsx`, `AdminProtectedRoute.tsx`); (2) **Fix bug backend chính:** `LoginResponse.UserInfo` chỉ có `roles` mà **thiếu `permissions[]`** (bỏ sót từ Sprint 9G-perm, chỉ `/auth/me` trả) — thêm field `permissions: List<String>` vào record + `AuthService.toUserInfo()` collect từ `user.roles.permissions`. Trước bug không lộ vì user luôn login ADMIN (bypass permission check); STAFF login → `hasPermission('access_admin')=undefined` → AdminLoginPage tự logout. Còn **Phase 12** (báo cáo Word + slide + video demo).
 
 ---
 
@@ -19,7 +19,7 @@ Xây dựng một website thương mại điện tử hoàn chỉnh dành cho c�
 
 ## 2. Progress tổng quan
 
-**Đã xong:** Phase 0-8 + Sprint 9A→9F của Phase 9. **Còn nợ:** Sprint 9G-perm (chèn mới), 9G, 9H + Phase 10-12.
+**Đã xong:** Phase 0-8 + Phase 9 đầy đủ 9/9 sprint (9A→9F + 9G-perm + 9G + 9H) + Phase 10 VNPay + Phase 11 Testing/Docker. **Còn nợ:** Phase 12 báo cáo.
 
 | Phase | Nội dung | Kết quả |
 |-------|----------|---------|
@@ -32,9 +32,9 @@ Xây dựng một website thương mại điện tử hoàn chỉnh dành cho c�
 | 6 | Inventory FIFO — luồng 5 status `pending→confirmed→preparing→shipping→delivered` với kho duyệt/từ chối phiếu xuất | ✅ |
 | 7 | Review (gate purchased+delivered) + Blog CRUD + Banner + rating aggregate | ✅ |
 | 8 | Frontend user site React SPA (26 route, chat AI widget, wishlist, compare, dark mode, megamenu) | ✅ |
-| **9** | **Frontend Admin dashboard — 6/9 sprint xong (9A→9F, chèn 9G-perm mới)** | 🟡 3 sprint |
-| 10 | Payment integration (VNPay sandbox) | ⚪ |
-| 11 | Testing + hardening + Docker Compose full stack | ⚪ |
+| **9** | **Frontend Admin dashboard — 9/9 sprint xong (9A→9F + 9G-perm + 9G + 9H)** | ✅ |
+| 10 | Payment integration (VNPay sandbox) | ✅ |
+| 11 | Testing + hardening + Docker Compose full stack | ✅ |
 | 12 | Báo cáo Word + slide + video demo | ⚪ |
 
 **Backend:** ~130+ endpoint (thêm 30 endpoint admin cho dashboard + orders + inventory + tạo đơn/phiếu).
@@ -285,12 +285,40 @@ Vite proxy `/api` + `/uploads` → localhost:8080.
 - ✅ **9D** — Product CRUD (guardrails 4 tầng + TipTap + MultiImageUploader + SpecFieldsInput động + cost_price + re-embed)
 - ✅ **9E** — Order + Inventory + Partner + tạo đơn admin + Filament-style form + race protection reserved_stock + auto tracking generator
 - ✅ **9F** — Vouchers + Banners + Blog + Reviews moderation + polish UX round 1 (validate realtime, datetime dark mode, review entry ProductDetail+OrderDetail)
-- 🟡 **9G-perm** — Phân quyền chi tiết theo mẫu TGDĐ (30 permission 4 nhóm, refactor hasRole→hasAuthority, RoleResource UI 2 cột) — **3/4 bước xong; Bước 3 test gộp vào 9G Bước E**
-- 🔴 **9G** — 5 bước A-E: Backend Users → FE AdminUsersPage → AI Embedding page → AI Chat Sessions (backend+FE) → Polish (copy-to-clipboard, empty state) + **Test E2E gộp cả 9G-perm + 9G (4 kịch bản, 21 test case)**
-- 🔴 **9H** — Test end-to-end + cập nhật docs + Postman
+- ✅ **9G-perm** — Phân quyền chi tiết theo mẫu TGDĐ (30 permission 4 nhóm, refactor hasRole→hasAuthority, RoleResource UI 2 cột) — 4/4 bước xong (Bước 3 test gộp vào 9G Bước E, user đã test pass)
+- ✅ **9G** — 5 bước A-E hoàn tất: Backend Users (4 endpoint + 5 guardrails, +fix SecurityConfig `/api/admin/**`); FE Users (KPI + trang chi tiết 4 tabs + trang tạo/chỉnh sửa gộp status+roles); AdminAiEmbeddingPage (3 KPI + 2 nút action + table Re-embed); Backend + FE Chat sessions (2 endpoint + list+dialog bubble 4 màu); Polish (`useCopyToClipboard` + `AdminEmptyState` + wire copy 4 chỗ). Test E2E 21 case pass trên UI thật.
+- ✅ **9H** — Postman 21 folder/151 endpoint (thêm 11 folder admin: Dashboard/Product-mở-rộng/Partners/Goods-Receipts/Inventory+Issues/Banners/Reviews/Blog/Roles/Users/AI-Ops) + README rewrite 11 section (đủ tài khoản test + luồng demo phân quyền 6 bước cho hội đồng)
 
-### Phase 10 — VNPay sandbox
-### Phase 11 — Testing + Docker Compose full stack
-### Phase 12 — Báo cáo Word + slide + video demo
+### Phase 10 — VNPay sandbox ✅
+### Phase 11 — Testing + hardening + Docker Compose full stack ✅ (5 bước xong)
+- ✅ **11A** — 41 unit test (Voucher, Jwt, Vnpay HMAC, ChatRateLimiter, AuthRateLimiter, Checkout, Inventory FIFO, AgentChat loop)
+- ✅ **11B** — 16 integration test Testcontainers pgvector (AuthFlow, OrderFlow, PermissionRbac, ReviewGate) — fix bug prod V15 seed_inventory phụ thuộc admin → thêm V14_5 seed admin
+- ✅ **11C** — `AuthRateLimiter` (login 10/15p, register 5/1h, forgot 3/1h theo IP) + [security-audit.md](security-audit.md) 220 dòng verify 0 IDOR
+- ✅ **11D** — Docker Compose full stack 3 container (postgres + backend + frontend Nginx), Dockerfile multi-stage, `.env.example`, `application-prod.properties` hardened, README root
+- ✅ **11E** — V22 seed 5 user + 5 voucher + 10 order (rải 6 status) + Newman 154 request pass 20.8s → [newman-report.html](newman-report.html) + [testcases.md](testcases.md) 38→93 case
+
+**Hotfix Phase 11 (cùng 2026-08-25) — admin/customer session isolation:**
+- **Bug:** `AdminLoginPage.tsx` chỉ check `isAdmin()` (bỏ sót từ Sprint 9G-perm) → STAFF login xong bị FE tự logout với toast "Không có quyền quản trị"
+- **Bug UX:** JWT lưu localStorage chia sẻ giữa customer site + admin site → khách hàng login `/dang-nhap` xong vào `/admin/*` **không cần login lại** — sai nghiệp vụ, dễ nhầm nếu chung máy
+- **Fix 4 file FE:**
+  - `stores/auth.ts` — thêm field `loginSource: 'admin' | 'customer' | null` persist localStorage. `login()` nhận thêm param `source`. `logout()` clear
+  - `pages/auth/LoginPage.tsx` — gọi `login(u, p, 'customer')`
+  - `pages/admin/AdminLoginPage.tsx` — gọi `login(u, p, 'admin')`; gate check cả `hasPermission('access_admin')` (không chỉ `isAdmin`); auto-redirect chỉ khi `loginSource === 'admin'`
+  - `components/admin/AdminProtectedRoute.tsx` — thêm rule `if (loginSource !== 'admin') redirect /admin/dang-nhap`
+- **Debug flow phát hiện root cause thật:**
+  - Network tab: `login` 200 → **`logout` 200 gọi ngay sau** = FE tự logout do check permission fail
+  - Local Storage `lw-auth`: `user: null, loginSource: null` (đã bị logout xoá)
+  - Test API `/api/auth/login`: response `user.permissions` là `MISSING` — mặc dù `/api/auth/me` trả đủ
+  - Root cause: `LoginResponse.UserInfo` bỏ sót field `permissions` từ Sprint 9G-perm
+- **Fix bổ sung (2 file backend):**
+  - [LoginResponse.java](../src/main/java/com/example/LaptopWorld_project/auth/dto/LoginResponse.java) — thêm `List<String> permissions` vào record `UserInfo`
+  - [AuthService.java](../src/main/java/com/example/LaptopWorld_project/auth/service/AuthService.java) `toUserInfo()` — collect permission codes từ `user.roles.permissions` (safe vì `findWithRolesByUsername` dùng `@EntityGraph(attributePaths={"roles","roles.permissions"})`)
+- **Kết quả ✅ (2026-08-25 user verify OK):**
+  - STAFF (`annguyen`, role=STAFF, có `access_admin`) login qua `/admin/dang-nhap` vào được `/admin/*`
+  - Customer session vào `/admin/*` bị đá về `/admin/dang-nhap` (bắt re-login)
+  - Session cũ (loginSource undefined) cũng bị force re-login — hành vi đúng
+- **Note trải nghiệm:** Vite HMR đôi khi không catch được thay đổi trong Zustand store → **cần restart `npm run dev`** để test được. Đã ghi vào [feedback memory](../../../.claude/projects/D--FINALYEAR-GRADUATION-LaptopWorld-project/memory/feedback_admin_login_session_source.md).
+
+### Phase 12 — Báo cáo Word + slide + video demo ⚪
 
 Xem chi tiết trong [plan.md](plan.md).

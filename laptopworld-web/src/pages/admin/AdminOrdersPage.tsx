@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { ShoppingBag, Search, Eye, Truck, Plus } from 'lucide-react'
+import { ShoppingBag, Search, Eye, Truck, Plus, Copy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -9,6 +9,7 @@ import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader'
 import { AdminTable, type AdminColumn } from '@/components/admin/common/AdminTable'
 import { OrderStatusBadge, ORDER_STATUS_META } from '@/components/admin/common/OrderStatusBadge'
 import { useAdminOrders, useOrderStatusCounts } from '@/hooks/api/useAdminOrders'
+import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
 import { usePartners } from '@/hooks/api/useAdminInventory'
 import { formatPrice, formatDateTime, lastNDaysRange } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -50,6 +51,7 @@ export function AdminOrdersPage() {
   const { data: paged, isLoading } = useAdminOrders(filter)
   const { data: counts } = useOrderStatusCounts()
   const { data: partners } = usePartners('shipping_provider')
+  const { copy } = useCopyToClipboard()
 
   const partnerMap = useMemo(() => {
     const m = new Map<number, string>()
@@ -66,10 +68,20 @@ export function AdminOrdersPage() {
     {
       key: 'code', header: 'Mã đơn',
       cell: (o) => (
-        <Link to={`/admin/don-hang/${o.id}`}
-          className="font-mono text-sm font-medium hover:text-primary">
-          {o.code}
-        </Link>
+        <div className="flex items-center gap-1">
+          <Link to={`/admin/don-hang/${o.id}`}
+            className="font-mono text-sm font-medium hover:text-primary">
+            {o.code}
+          </Link>
+          <Button
+            variant="ghost" size="icon"
+            className="h-6 w-6 opacity-60 hover:opacity-100"
+            title="Sao chép mã đơn"
+            onClick={(e) => { e.stopPropagation(); copy(o.code, `Đã sao chép mã ${o.code}`) }}
+          >
+            <Copy className="h-3 w-3" />
+          </Button>
+        </div>
       ),
     },
     {

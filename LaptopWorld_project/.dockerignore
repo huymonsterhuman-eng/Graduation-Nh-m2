@@ -1,0 +1,11 @@
+target/
+.mvn/
+.idea/
+.vscode/
+*.iml
+*.log
+uploads/
+Dockerfile
+.dockerignore
+docker-compose*.yml
+application-local.properties

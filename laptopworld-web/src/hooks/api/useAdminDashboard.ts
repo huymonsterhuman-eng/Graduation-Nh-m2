@@ -44,10 +44,11 @@ export interface KpiSummary {
   outOfStock: number
 }
 
-export function useDashboardKpi(range: DateRange) {
+export function useDashboardKpi(range: DateRange, enabled = true) {
   return useQuery({
     queryKey: ['admin', 'dashboard', 'kpi', range],
     staleTime: 30_000,
+    enabled,
     queryFn: async () => {
       const { data } = await api.get<ApiResponse<KpiSummary>>(`/admin/dashboard/kpi${rangeParams(range)}`)
       return data.data
