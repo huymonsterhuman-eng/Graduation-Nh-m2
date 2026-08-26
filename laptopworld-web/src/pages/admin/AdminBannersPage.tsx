@@ -50,14 +50,16 @@ function aspectForPosition(position?: string | null): number {
       return 1 / 3
     case 'hero_carousel':
     default:
-      return 16 / 9     // khung ngang carousel
+      // Khung carousel homepage `h-56 md:h-80` = ~1.67:1 mobile / ~3.75:1 desktop.
+      // 3:1 là mid-range → giảm cover-crop trên cả 2 device so với 16:9 cũ.
+      return 3 / 1
   }
 }
 
 function aspectLabel(position?: string | null): string {
   const a = aspectForPosition(position)
   if (Math.abs(a - 1 / 3) < 0.01) return '1:3 (dọc dài, khớp sidebar)'
-  if (Math.abs(a - 16 / 9) < 0.01) return '16:9 (ngang)'
+  if (Math.abs(a - 3 / 1) < 0.01) return '3:1 (banner ngang dài, khớp hero)'
   return a.toFixed(2)
 }
 

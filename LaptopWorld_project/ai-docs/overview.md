@@ -8,7 +8,7 @@
 
 > **Đề tài:** Xây dựng hệ thống thương mại điện tử tích hợp trợ lý AI hỗ trợ tư vấn sản phẩm cho **LaptopWorld**.
 > **Loại:** Đồ án tốt nghiệp.
-> **Cập nhật:** 2026-08-25 (**Phase 11 ✅ HOÀN THÀNH** — 5 bước 11A→11E xong: 57 test tự động (41 unit + 16 integration Testcontainers) pass < 45s; Docker Compose 3 container end-to-end (`docker compose up -d` truy cập `http://localhost` OK, ảnh SP hiển thị); `AuthRateLimiter` chống brute-force login/register/forgot-password; [security-audit.md](security-audit.md) verify 0 IDOR + config prod hardened; V22 seed 5 user + 5 voucher + 10 order rải qua 6 status; Newman 154 request pass in 20.8s → [newman-report.html](newman-report.html) 2.8MB; [testcases.md](testcases.md) mở rộng từ 38 → 93 case cho báo cáo. **Hotfix cùng ngày ✅ HOÀN THÀNH (user đã verify STAFF login thành công):** (1) Tách bạch session admin/customer bằng field `loginSource` — 4 file FE (`auth.ts`, `LoginPage.tsx`, `AdminLoginPage.tsx`, `AdminProtectedRoute.tsx`); (2) **Fix bug backend chính:** `LoginResponse.UserInfo` chỉ có `roles` mà **thiếu `permissions[]`** (bỏ sót từ Sprint 9G-perm, chỉ `/auth/me` trả) — thêm field `permissions: List<String>` vào record + `AuthService.toUserInfo()` collect từ `user.roles.permissions`. Trước bug không lộ vì user luôn login ADMIN (bypass permission check); STAFF login → `hasPermission('access_admin')=undefined` → AdminLoginPage tự logout. **Polish 9F round 2 (cùng ngày, commit `41e1c53`):** (a) Cleanup demo data — xoá 15 orders `ORD-DEMO/TEST/REV-*` + 5 goods_issues + 3 users `user3/4/5`; (b) AdminBrandsPage thêm cột "Logo" (header text) + "Sản phẩm" (badge count), guardrail xoá disable khi còn SP + khoá slug khi còn SP + warn realtime khi tắt isActive; (c) Banner đa slot — V23 `banners.position` (hero_carousel/sidebar_phone/sidebar_laptop), V24 `banners.image_fit`, endpoint `GET /api/banners/slot/{position}` + hook `useBannerBySlot`, admin form Select vị trí; (d) Image cropper với `react-easy-crop` — `ImageCropperDialog` kéo/zoom/xoay + canvas→JPEG blob→upload lại, auto mở sau upload banner, aspect 16:9 hero / 1:3 sidebar; (e) `CategorySection` sidebar aspect-[1/3] cứng khớp cropper, ảnh fill 100% object-cover không cắt mép. Còn **Phase 12** (báo cáo Word + slide + video demo).
+> **Cập nhật:** 2026-08-26 (Polish MegaMenu + brand filter theo category — xem cuối doc). **Phase 11 ✅ HOÀN THÀNH** — 5 bước 11A→11E xong: 57 test tự động (41 unit + 16 integration Testcontainers) pass < 45s; Docker Compose 3 container end-to-end (`docker compose up -d` truy cập `http://localhost` OK, ảnh SP hiển thị); `AuthRateLimiter` chống brute-force login/register/forgot-password; [security-audit.md](security-audit.md) verify 0 IDOR + config prod hardened; V22 seed 5 user + 5 voucher + 10 order rải qua 6 status; Newman 154 request pass in 20.8s → [newman-report.html](newman-report.html) 2.8MB; [testcases.md](testcases.md) mở rộng từ 38 → 93 case cho báo cáo. **Hotfix cùng ngày ✅ HOÀN THÀNH (user đã verify STAFF login thành công):** (1) Tách bạch session admin/customer bằng field `loginSource` — 4 file FE (`auth.ts`, `LoginPage.tsx`, `AdminLoginPage.tsx`, `AdminProtectedRoute.tsx`); (2) **Fix bug backend chính:** `LoginResponse.UserInfo` chỉ có `roles` mà **thiếu `permissions[]`** (bỏ sót từ Sprint 9G-perm, chỉ `/auth/me` trả) — thêm field `permissions: List<String>` vào record + `AuthService.toUserInfo()` collect từ `user.roles.permissions`. Trước bug không lộ vì user luôn login ADMIN (bypass permission check); STAFF login → `hasPermission('access_admin')=undefined` → AdminLoginPage tự logout. **Polish 9F round 2 (cùng ngày, commit `41e1c53`):** (a) Cleanup demo data — xoá 15 orders `ORD-DEMO/TEST/REV-*` + 5 goods_issues + 3 users `user3/4/5`; (b) AdminBrandsPage thêm cột "Logo" (header text) + "Sản phẩm" (badge count), guardrail xoá disable khi còn SP + khoá slug khi còn SP + warn realtime khi tắt isActive; (c) Banner đa slot — V23 `banners.position` (hero_carousel/sidebar_phone/sidebar_laptop), V24 `banners.image_fit`, endpoint `GET /api/banners/slot/{position}` + hook `useBannerBySlot`, admin form Select vị trí; (d) Image cropper với `react-easy-crop` — `ImageCropperDialog` kéo/zoom/xoay + canvas→JPEG blob→upload lại, auto mở sau upload banner, aspect 16:9 hero / 1:3 sidebar; (e) `CategorySection` sidebar aspect-[1/3] cứng khớp cropper, ảnh fill 100% object-cover không cắt mép. Còn **Phase 12** (báo cáo Word + slide + video demo).
 
 ---
 
@@ -306,6 +306,8 @@ Vite proxy `/api` + `/uploads` → localhost:8080.
 | V22 | Seed demo cho báo cáo: 5 user (customer/CTV) + 5 voucher (fixed/percent) + 10 order rải qua 6 status (đã cleanup DEMO/TEST/REV sau khi review UI) |
 | V23 | `banners.position` VARCHAR(50) (hero_carousel/sidebar_phone/sidebar_laptop) + backfill banner cũ về hero_carousel + index `(position, is_active, sort_order)` |
 | V24 | `banners.image_fit` VARCHAR(10) NOT NULL DEFAULT 'cover' (cột dự phòng, không dùng UI — cropper đã thay thế mục đích ban đầu) |
+| V25 | `collections.home_position` VARCHAR(20) NOT NULL DEFAULT 'NONE' (NONE/FEATURED_BLOCK/PHONE_CHIP/LAPTOP_CHIP) — thay `show_on_home` bool cũ để admin gán vị trí chi tiết trên homepage. Backfill `show_on_home=true` → `FEATURED_BLOCK` rồi drop cột cũ. Index composite `(home_position, is_active, sort_order)`. |
+| V26 | `collections.is_featured` BOOLEAN NOT NULL DEFAULT FALSE — tách "Bộ sưu tập nổi bật" khỏi enum home_position thành toggle độc lập. Backfill `home_position='FEATURED_BLOCK'` → `is_featured=true` + reset position về `NONE`. Enum HomePosition rút gọn còn NONE/PHONE_CHIP/LAPTOP_CHIP. 1 collection có thể VỪA là chip Laptop VỪA nổi bật. Index `(is_featured, is_active, sort_order)`. |
 
 ---
 
@@ -399,6 +401,100 @@ Vite proxy `/api` + `/uploads` → localhost:8080.
 - Trước: `h-full` stretch theo grid SP → aspect biến động → object-cover cắt mép ảnh cropped
 - Giờ: `aspect-[1/3]` cứng + `self-start` (không stretch) → khớp chính xác cropper 1:3, ảnh fit 100% không cắt
 - Trade-off chấp nhận được: khoảng trắng ~30-80px dưới banner nếu grid SP cao hơn 720px
+
+**Polish MegaMenu + brand filter theo category (2026-08-26) — sạch UX menu Danh mục + trang danh mục:**
+
+Bối cảnh bug: hover **Danh mục → Điện thoại** thì khung Thương hiệu vẫn hiện Acer/Anker/Baseus/Bose/Corsair… (những hãng chỉ có laptop/phụ kiện), bấm brand ra 0 SP → cụt hứng mua. Ngoài ra `MegaMenu` link truyền `?brandId=X` nhưng `CategoryListPage` bỏ qua URL param → click "Sony" trong menu ra Samsung/iPhone.
+
+*(a) Backend — endpoint mới `GET /api/catalog/brands?categoryId=X`:*
+- [ProductRepository.findDistinctBrandsByCategoryIds](../src/main/java/com/example/LaptopWorld_project/catalog/repository/ProductRepository.java) — JPQL SELECT DISTINCT brand FROM Product WHERE category IN (:ids) AND isActive AND brand.isActive, order by brand.name.
+- [BrandService.findByCategory(id)](../src/main/java/com/example/LaptopWorld_project/catalog/service/BrandService.java) — gom `parentId + all children id` (dùng `findByParentIdOrderBySortOrderAsc`), gọi repo. Trả `List<BrandDto>`.
+- [BrandController.list](../src/main/java/com/example/LaptopWorld_project/catalog/controller/BrandController.java) — thêm optional `@RequestParam Long categoryId` (BC compatible: không có param thì trả all active như cũ).
+
+*(b) FE hook mới `useBrandsByCategory(catId)` trong [useCategories.ts](../../laptopworld-web/src/hooks/api/useCategories.ts):*
+- TanStack Query key `['brands', 'by-category', categoryId]`, `enabled: !!categoryId`, cache 5 phút — hover đi hover lại không refetch.
+
+*(c) [MegaMenu.tsx](../../laptopworld-web/src/components/layout/MegaMenu.tsx) — 3 cải tiến:*
+- **Thương hiệu + Nổi bật lọc theo cat đang hover**: dùng `useBrandsByCategory(effectiveCategoryId)` thay `useBrands()`. Cat chưa có SP → khung tự ẩn.
+- **Sub-cat click-to-lock preview**: mỗi sub-cat có 2 vùng bấm — **tên** (button, click để filter Thương hiệu + Nổi bật theo sub, click lần 2 = unselect toggle) + **icon `↗`** (Link riêng navigate `/danh-muc/{sub.slug}`). Sub đã chọn: nền `primary/10` + text đậm. Link "← Xem tất cả" xuất hiện góc phải khung khi có sub selected. Hint 1 dòng dưới khung: *"Bấm tên để lọc theo nhánh, bấm ↗ để mở trang."* Chuyển cat cha khác → tự reset sub selected qua `useEffect([activeId])`.
+- **Hover mở menu** thay click: `onMouseEnter/Leave` trên container + delay đóng 150ms qua `closeTimerRef`. Wrapper panel `pt-2` (thay `mt-2`) làm "bridge" invisible 8px giữa button và card — di chuột thẳng xuống không bị đóng. Vẫn giữ `onClick` toggle button cho mobile/touch.
+
+*(d) [CategoryListPage.tsx](../../laptopworld-web/src/pages/CategoryListPage.tsx) — 2 fix:*
+- **Sidebar filter brand dùng `useBrandsByCategory(category?.id)`** — chỉ hiện brand có SP thực sự trong cat (bao gồm sub-cat con). Consistency với MegaMenu.
+- **URL query params làm source of truth** cho `brandId`/`minPrice`/`maxPrice` (dùng `useSearchParams`). Trước là `useState` local → link `?brandId=X` từ MegaMenu bị bỏ qua → filter không áp → hiện sai SP. Nay: click brand ở sidebar cũng push vào URL (`replace: true`), back/forward giữ nguyên filter. Ô nhập giá vẫn dùng draft state, commit vào URL khi bấm "Áp dụng".
+
+**Polish HomePage sections + Collection homePosition + UX thêm SP (2026-08-26 tối) — 3 idea cùng làm 1 sprint:**
+
+Bối cảnh: (i) Section "Điện thoại nổi bật" + "Laptop văn phòng-Gaming" trên HomePage cũng dùng `useBrands()` — hiện Acer/Akko/Anker cho cả 2 mục. (ii) Chip "Văn phòng/Gaming/Đồ họa/Mỏng nhẹ/Sinh viên" chỉ đổi màu, không filter. (iii) 2 toggle "Hoạt động" + "Hiển thị trên trang chủ" trong AdminCollectionsPage trùng nghĩa. (iv) Dialog thêm SP vào collection bắt user gõ tên trước mới thấy — chậm.
+
+*(a) Bug 1 — Brand chip theo cat:*
+- [CategorySection.tsx](../../laptopworld-web/src/components/common/CategorySection.tsx) đổi `useBrands()` → `useBrandsByCategory(categoryId)`. Điện thoại → brand chip chỉ Apple/Google/Samsung/Sony; Laptop → chỉ Dell/HP/Asus/Acer…
+
+*(b) Bug 2 — Chip use case wire vào Collection:*
+- Prop `extraChips` đổi type từ `string[]` → `Array<{label, collectionSlug}>`.
+- Khi user click chip → set `activeCollectionSlug` → gọi `useCollectionProductsBySlug(slug)` thay `useProducts` → grid hiển thị SP trong collection đó. Click "Tất cả" trả về `useProducts` theo cat.
+- **Brand chips ẩn khi collection active** (2 mode loại trừ, API không combine được). Ngược lại chọn brand → clear collection.
+- Empty state khi collection chưa có SP: *"Bộ sưu tập này chưa có sản phẩm. Admin cần gán sản phẩm ở trang /admin/bo-suu-tap."*
+
+*(c) Idea 1+2 — thay `showOnHome` bool bằng `homePosition` enum:*
+- **Migration V25** `V25__collection_home_position.sql`: add cột `home_position VARCHAR(20) NOT NULL DEFAULT 'NONE'` + backfill `show_on_home=true` → `'FEATURED_BLOCK'` + drop `show_on_home` + index composite `(home_position, is_active, sort_order)`.
+- Enum mới `HomePosition`: NONE / FEATURED_BLOCK / PHONE_CHIP / LAPTOP_CHIP. Rev backend: `Collection.homePosition` (@Enumerated STRING), `CollectionDto`/`CollectionRequest` chứa `HomePosition`, `CollectionRepository.findByHomePositionAndIsActiveTrueOrderBySortOrderAsc(position)`, `CollectionService.findByHomePosition(position)`, endpoint mới `GET /api/catalog/collections/by-position/{position}` + alias BC `/home` → FEATURED_BLOCK.
+- FE type `Collection.homePosition` + hook `useCollectionsByPosition(position)` với TanStack key `['collections-by-position', position]`. `useHomeCollections()` giữ làm alias BC.
+- `AdminCollectionsPage` form: Switch "Hiển thị trên trang chủ" → **Select "Vị trí trên trang chủ"** 4 option; cột list badge màu 4 loại (emerald/sky/amber/muted); hint dưới Switch "Hoạt động" làm rõ là công tắc TỔNG (ẩn khỏi mọi nơi).
+- `HomePage.tsx`: bỏ 5 slug hardcode, dùng `useCollectionsByPosition('PHONE_CHIP')` + `useCollectionsByPosition('LAPTOP_CHIP')` → map thành `extraChips` tự động. Admin thêm/xóa collection → chip trên homepage cập nhật ngay (staleTime 5 phút).
+
+*(d) Idea 3 — UX thêm SP vào collection:*
+- Refactor `CollectionProductManager` dialog (`sm:max-w-6xl`):
+  - Panel trái (`1fr`): danh sách SP đang có, mỗi row có nút X xóa.
+  - Panel phải (`1.4fr`): **filter row** (Input keyword + Select danh mục + Select thương hiệu + button "Xóa lọc") + **list SP paginated 20/trang** hiển thị sẵn qua `useAdminProducts` (không cần gõ mới thấy) + checkbox multi-select + badge "Đã có" khi SP đã trong collection (disabled checkbox + opacity 50%) + pagination "← Trước / Sau →" + button "Thêm N sản phẩm đã chọn" (disabled khi N=0, đổi số realtime).
+  - Native `<input type="checkbox">` với `accent-primary` — không cần shadcn Checkbox.
+  - Sau khi thêm thành công: toast "Đã thêm N sản phẩm", clear selection, TanStack invalidate `['admin', 'collection-products', id]` tự refresh panel trái.
+
+**Polish Collection round 2 (2026-08-26 tối muộn) — tách isFeatured + crop 3:4:**
+
+Bối cảnh: (v) Dropdown `homePosition` mutually exclusive — chọn `FEATURED_BLOCK` là mất khả năng gán chip. User muốn 1 collection vừa là chip Laptop vừa nổi bật. (vi) Ảnh cover collection upload không có crop → khung homepage cover-crop tùy tiện, mất mép ảnh.
+
+*(e) Idea A — Toggle `isFeatured` độc lập:*
+- Migration **V26** `V26__collection_is_featured.sql`: add `is_featured BOOLEAN NOT NULL DEFAULT FALSE` + backfill `home_position='FEATURED_BLOCK'` → `is_featured=true` + reset `home_position` về `NONE` + index `(is_featured, is_active, sort_order)`.
+- Enum `HomePosition` rút gọn còn 3 giá trị: `NONE`, `PHONE_CHIP`, `LAPTOP_CHIP` (bỏ `FEATURED_BLOCK`).
+- Entity `Collection` thêm `isFeatured` boolean; `CollectionDto`/`CollectionRequest` thêm field; `CollectionMapper` thêm `@Mapping(target="isFeatured", source="featured")` (Lombok bỏ prefix `is`); `CollectionRepository.findByIsFeaturedTrueAndIsActiveTrueOrderBySortOrderAsc()`; `CollectionService.findFeatured()` mới.
+- Endpoint mới `GET /api/catalog/collections/featured` + alias BC `/home` gọi `findFeatured()` (không còn dùng `findByPosition(FEATURED_BLOCK)`).
+- FE type `Collection.isFeatured: boolean`; `useHomeCollections` đổi endpoint `/featured`. `useCollectionsByPosition` type union chỉ còn 3 giá trị.
+- `AdminCollectionsPage`:
+  - Dropdown "Chip trên trang chủ" chỉ 3 option (bỏ Section "Bộ sưu tập nổi bật").
+  - **Thêm block toggle "Bộ sưu tập nổi bật"** với icon `Sparkles` vàng + hint "Độc lập với chip — 1 collection có thể vừa là chip Laptop vừa nổi bật."
+  - Cột list "Vị trí trên trang chủ" hiện 2 badge: position (muted/sky/amber) + "⭐ Nổi bật" (yellow) khi isFeatured.
+
+*(f) Idea B — Crop ảnh cover aspect 3:4:*
+- Import `ImageCropperDialog` + state `cropperOpen`/`cropperImageSrc` như pattern AdminBannersPage. Auto mở cropper 100ms sau khi upload lần đầu; nút "Cắt lại ảnh (3:4)" hiện khi đã có ảnh. Folder `collections`.
+- `MediaUploader` label ghi rõ "Ảnh cover (aspect 3:4)" + hint 1 dòng dưới.
+- [CollectionsSection.tsx](../../laptopworld-web/src/components/common/CollectionsSection.tsx) đổi khung ảnh:
+  - Trước: `md:h-full` (desktop stretch cột) + `h-40` (mobile 160px) → mismatch aspect 2 device.
+  - Sau: `aspect-[3/4]` cố định cả 2 device + `md:items-start` để không stretch. Ảnh fill 100% object-cover khớp cropper 3:4 → không cắt mép, không méo. Fallback picsum `480x640`.
+
+**Polish Cropper alignment (2026-08-26 tối muộn hơn) — 3 iteration fix cover-crop:**
+
+*(g) Đổi aspect cropper khớp khung UI (Hướng "sửa cropper không đổi UI"):*
+- Banner hero: `16:9` → **`3:1`** — khung carousel `h-56 md:h-80` thực tế ~1.67:1 (mobile) và ~4.5:1 (desktop), `3:1` là mid-range.
+- Collection cover: `3:4` → **`1:2`** — cột stretched ~240×500 = 1:2.
+- `AdminBannersPage.aspectForPosition('hero_carousel')` return `3/1`; `aspectLabel` cập nhật hint "3:1 (banner ngang dài, khớp hero)".
+- `AdminCollectionsPage.ImageCropperDialog aspect={1/2}` + label "Ảnh cover (aspect 1:2)".
+- `CollectionsSection` khung ảnh: `aspect-[1/2]` mobile + `md:min-h-[480px]` desktop (240 × 2) khớp cropper.
+
+*(h) Cropper nâng cấp UX — auto-fit + zoom-out + fill white:*
+- [ImageCropperDialog.tsx](../../laptopworld-web/src/components/admin/common/ImageCropperDialog.tsx):
+  - `minZoom={0.2}` (thay 1) + slider `min={0.2}` → cho phép **thu nhỏ ảnh** thấy toàn ảnh gốc trong khung crop.
+  - `restrictPosition={false}` — cho phép kéo ảnh ra ngoài khung (khi zoom out < 1x).
+  - Canvas 2 fill `#ffffff` trước `drawImage` → vùng crop rơi ngoài ảnh gốc thành trắng (JPEG không hỗ trợ transparent, thay đen mặc định).
+  - Callback `onMediaLoaded(size)` set `imgAspect` state; `useEffect(open, imgAspect)` tự trigger `fitToFrame()`.
+  - `fitToFrame()`: `zoom = min(imgAspect/aspect, aspect/imgAspect)` clamp `[0.2, 1]` → toàn ảnh gọn trong khung crop khi mở dialog.
+  - Nút icon `Maximize2` bên phải slider Zoom để bấm lại auto-fit bất kỳ lúc nào.
+
+*(i) Fix container homepage banner khớp cropper 3:1:*
+- Bug user báo: sau khi đổi cropper 3:1, ảnh crop khớp khung dialog nhưng homepage vẫn cover-crop lệch trên/dưới.
+- Root cause: container `h-56 md:h-80 w-full` = aspect variable theo device (mobile ~1.67:1, desktop ~4.5:1), không khớp cropper 3:1.
+- Fix: [HomePage.tsx](../../laptopworld-web/src/pages/HomePage.tsx) container carousel từ `w-full h-56 md:h-80 object-cover` → **`w-full aspect-[3/1] object-cover`** cố định 2 device. Skeleton loading placeholder cũng update `aspect-[3/1]` tránh layout jump.
+- Trade-off: desktop container ~1440 wide → height 480px (cao hơn 320px cũ, banner đẹp hơn); mobile ~375 → height 125px (thấp hơn 224 cũ, tự nhiên vì aspect banner ngang).
 
 ### Phase 12 — Báo cáo Word + slide + video demo ⚪
 

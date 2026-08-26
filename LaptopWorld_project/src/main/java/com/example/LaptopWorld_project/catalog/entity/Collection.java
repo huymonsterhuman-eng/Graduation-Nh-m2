@@ -35,8 +35,13 @@ public class Collection extends BaseEntity {
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 
-    @Column(name = "show_on_home", nullable = false)
-    private boolean showOnHome = false;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "home_position", nullable = false, length = 20)
+    private HomePosition homePosition = HomePosition.NONE;
+
+    /** Toggle độc lập — 1 collection có thể vừa là chip vừa là "nổi bật". */
+    @Column(name = "is_featured", nullable = false)
+    private boolean isFeatured = false;
 
     @Column(name = "sort_order", nullable = false)
     private int sortOrder = 0;

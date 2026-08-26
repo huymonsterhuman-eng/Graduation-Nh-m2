@@ -1,5 +1,6 @@
 package com.example.LaptopWorld_project.catalog.dto;
 
+import com.example.LaptopWorld_project.catalog.entity.HomePosition;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -20,7 +21,11 @@ public record CollectionRequest(
 
         Boolean isActive,
 
-        Boolean showOnHome,
+        /** Null → không đổi vị trí; NONE → gỡ khỏi chip. */
+        HomePosition homePosition,
+
+        /** Toggle nổi bật — độc lập với homePosition. */
+        Boolean isFeatured,
 
         Integer sortOrder
 ) {}

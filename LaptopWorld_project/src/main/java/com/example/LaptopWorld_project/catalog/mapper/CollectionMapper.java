@@ -14,6 +14,7 @@ public interface CollectionMapper {
 
     @Mapping(target = "parentId",     source = "parent.id")
     @Mapping(target = "isActive",     source = "active")
+    @Mapping(target = "isFeatured",   source = "featured")
     @Mapping(target = "productCount", source = "products", qualifiedByName = "countProducts")
     CollectionDto toDto(Collection entity);
 

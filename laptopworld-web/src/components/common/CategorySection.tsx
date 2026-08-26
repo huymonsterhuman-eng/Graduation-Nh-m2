@@ -4,9 +4,17 @@ import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ProductCard } from './ProductCard'
 import { useProducts } from '@/hooks/api/useProducts'
-import { useBrands } from '@/hooks/api/useCategories'
+import { useBrandsByCategory } from '@/hooks/api/useCategories'
+import { useCollectionProductsBySlug } from '@/hooks/api/useCollections'
 import { cn } from '@/lib/utils'
 import { ArrowRight } from 'lucide-react'
+
+export interface ExtraChip {
+  /** Nhãn hiển thị trên chip, VD "Gaming" */
+  label: string
+  /** Slug của Collection tương ứng — admin phải tạo trước ở /admin/bo-suu-tap */
+  collectionSlug: string
+}
 
 interface Props {
   title: string
@@ -16,8 +24,12 @@ interface Props {
   bannerLink?: string
   bannerTitle: string
   bannerDesc?: string
-  /** Chips filter phụ (VD use case cho laptop) — nếu truyền, hiện ở trên brand chips */
-  extraChips?: string[]
+  /**
+   * Chip filter theo use case — mỗi chip trỏ vào 1 Collection.
+   * Click chip → gọi API `/catalog/collections/{slug}/products`.
+   * Khi collection chip active thì brand chips bị ẩn (2 mode không combine được vì API tách biệt).
+   */
+  extraChips?: ExtraChip[]
 }
 
 /**
@@ -28,15 +40,35 @@ export function CategorySection({
   title, categoryId, categorySlug, bannerImage, bannerLink, bannerTitle, bannerDesc, extraChips,
 }: Props) {
   const [activeBrand, setActiveBrand] = useState<number | undefined>()
-  const [activeChip, setActiveChip] = useState<string | undefined>()
+  const [activeCollectionSlug, setActiveCollectionSlug] = useState<string | undefined>()
 
-  const { data: brands } = useBrands()
-  const { data, isLoading } = useProducts({
+  // Brand chips lọc theo cat (chỉ brand có SP thật trong cat này)
+  const { data: brands } = useBrandsByCategory(categoryId)
+
+  // Mode 1 — collection active: gọi collection API
+  const { data: collectionProducts, isLoading: loadingCollection } =
+    useCollectionProductsBySlug(activeCollectionSlug, 8)
+
+  // Mode 2 — mặc định: gọi products theo cat + brand
+  const { data: paged, isLoading: loadingPaged } = useProducts({
     categoryId,
     brandId: activeBrand,
     size: 8,
     sort: 'isFeatured,desc',
   })
+
+  // Effective data theo mode
+  const products = activeCollectionSlug ? collectionProducts : paged?.content
+  const isLoading = activeCollectionSlug ? loadingCollection : loadingPaged
+
+  const selectCollection = (slug: string | undefined) => {
+    setActiveCollectionSlug(slug)
+    if (slug) setActiveBrand(undefined) // clear brand khi chọn collection
+  }
+  const selectBrand = (id: number | undefined) => {
+    setActiveBrand(id)
+    if (id) setActiveCollectionSlug(undefined) // clear collection khi chọn brand
+  }
 
   return (
     <section>
@@ -70,25 +102,31 @@ export function CategorySection({
 
         {/* Right: chips + grid */}
         <div className="space-y-3">
-          {/* Extra chips (use case) */}
+          {/* Extra chips (use case → collection) */}
           {extraChips && extraChips.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
-              <ChipBtn active={!activeChip} onClick={() => setActiveChip(undefined)}>Tất cả</ChipBtn>
+              <ChipBtn active={!activeCollectionSlug} onClick={() => selectCollection(undefined)}>Tất cả</ChipBtn>
               {extraChips.map((c) => (
-                <ChipBtn key={c} active={activeChip === c} onClick={() => setActiveChip(c)}>{c}</ChipBtn>
+                <ChipBtn
+                  key={c.collectionSlug}
+                  active={activeCollectionSlug === c.collectionSlug}
+                  onClick={() => selectCollection(c.collectionSlug)}
+                >
+                  {c.label}
+                </ChipBtn>
               ))}
             </div>
           )}
 
-          {/* Brand chips */}
-          {brands && brands.length > 0 && (
+          {/* Brand chips — ẩn khi đang lọc theo collection (2 mode loại trừ nhau) */}
+          {!activeCollectionSlug && brands && brands.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
-              <ChipBtn active={!activeBrand} onClick={() => setActiveBrand(undefined)} variant="brand">Tất cả</ChipBtn>
+              <ChipBtn active={!activeBrand} onClick={() => selectBrand(undefined)} variant="brand">Tất cả</ChipBtn>
               {brands.slice(0, 8).map((b) => (
                 <ChipBtn
                   key={b.id}
                   active={activeBrand === b.id}
-                  onClick={() => setActiveBrand(b.id)}
+                  onClick={() => selectBrand(b.id)}
                   variant="brand"
                 >
                   {b.name}
@@ -104,11 +142,17 @@ export function CategorySection({
                 <Skeleton key={i} className="h-72 rounded-lg" />
               ))}
             </div>
-          ) : (
+          ) : products && products.length > 0 ? (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {data?.content?.slice(0, 8).map((p) => (
+              {products.slice(0, 8).map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+              {activeCollectionSlug
+                ? 'Bộ sưu tập này chưa có sản phẩm. Admin cần gán sản phẩm ở trang /admin/bo-suu-tap.'
+                : 'Không có sản phẩm phù hợp'}
             </div>
           )}
         </div>

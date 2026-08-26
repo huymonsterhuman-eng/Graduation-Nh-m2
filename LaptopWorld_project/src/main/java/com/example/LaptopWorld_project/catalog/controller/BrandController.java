@@ -20,9 +20,14 @@ public class BrandController {
 
     private final BrandService brandService;
 
-    @Operation(summary = "Danh sách brand đang active")
+    @Operation(summary = "Danh sách brand đang active. " +
+            "Truyền categoryId để chỉ lấy brand có SP trong category (bao gồm sub-category).")
     @GetMapping("/api/catalog/brands")
-    public ApiResponse<List<BrandDto>> list() {
+    public ApiResponse<List<BrandDto>> list(
+            @RequestParam(required = false) Long categoryId) {
+        if (categoryId != null) {
+            return ApiResponse.ok(brandService.findByCategory(categoryId));
+        }
         return ApiResponse.ok(brandService.findAllActive());
     }
 

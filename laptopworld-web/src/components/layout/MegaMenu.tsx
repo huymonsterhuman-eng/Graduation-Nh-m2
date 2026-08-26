@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronRight, Menu, Smartphone, Laptop, Tablet, Watch, Headphones, Package, X } from 'lucide-react'
+import { ArrowUpRight, ChevronRight, Menu, Smartphone, Laptop, Tablet, Watch, Headphones, Package, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { useCategories, useBrands } from '@/hooks/api/useCategories'
+import { useCategories, useBrandsByCategory } from '@/hooks/api/useCategories'
 import { useProducts } from '@/hooks/api/useProducts'
 import { SmartImage } from '@/components/common/SmartImage'
 import { formatPrice } from '@/lib/format'
@@ -21,18 +21,36 @@ const CATEGORY_ICONS: Record<string, typeof Smartphone> = {
 export function MegaMenu() {
   const [open, setOpen] = useState(false)
   const [activeId, setActiveId] = useState<number | null>(null)
+  const [selectedSubId, setSelectedSubId] = useState<number | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const closeTimerRef = useRef<number | null>(null)
+
+  // Hover mở + delay 150ms trước khi đóng để chuột đi qua "bridge" 8px giữa button và panel
+  const handleEnter = () => {
+    if (closeTimerRef.current) { window.clearTimeout(closeTimerRef.current); closeTimerRef.current = null }
+    setOpen(true)
+  }
+  const handleLeave = () => {
+    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current)
+    closeTimerRef.current = window.setTimeout(() => setOpen(false), 150)
+  }
 
   const { data: categories } = useCategories()
-  const { data: brands } = useBrands()
   const activeCategory = categories?.find((c) => c.id === activeId)
 
-  // Preview SP theo category active
+  // Ưu tiên sub đã chọn — nếu không thì fallback về cat cha
+  const effectiveCategoryId = selectedSubId ?? activeId
+  const { data: brands } = useBrandsByCategory(effectiveCategoryId)
+
+  // Preview SP theo sub đã chọn hoặc cat cha
   const { data: featuredProducts } = useProducts({
-    categoryId: activeId ?? undefined,
+    categoryId: effectiveCategoryId ?? undefined,
     size: 4,
     sort: 'isFeatured,desc',
   })
+
+  // Reset sub đã chọn khi đổi cat cha (tránh giữ sub cũ khi user chuyển sang cat khác)
+  useEffect(() => { setSelectedSubId(null) }, [activeId])
 
   // Auto chọn category đầu khi mở menu
   useEffect(() => {
@@ -62,7 +80,12 @@ export function MegaMenu() {
   }, [open])
 
   return (
-    <div ref={containerRef} className="relative">
+    <div
+      ref={containerRef}
+      className="relative"
+      onMouseEnter={handleEnter}
+      onMouseLeave={handleLeave}
+    >
       <Button
         variant="secondary"
         size="sm"
@@ -74,7 +97,8 @@ export function MegaMenu() {
       </Button>
 
       {open && (
-        <div className="absolute left-0 top-full mt-2 z-40 w-[min(920px,calc(100vw-2rem))] rounded-lg border bg-background shadow-2xl overflow-hidden">
+        <div className="absolute left-0 top-full z-40 w-[min(920px,calc(100vw-2rem))] pt-2">
+          <div className="rounded-lg border bg-background shadow-2xl overflow-hidden">
           <div className="grid grid-cols-[220px_1fr]">
             {/* Cột 1: danh mục cha */}
             <ul className="border-r bg-muted/30 max-h-[70vh] overflow-y-auto py-2">
@@ -97,21 +121,62 @@ export function MegaMenu() {
                   <div className="space-y-4">
                     {activeCategory.children && activeCategory.children.length > 0 && (
                       <div>
-                        <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">
-                          Danh mục con
-                        </h4>
-                        <div className="grid grid-cols-2 gap-1">
-                          {activeCategory.children.map((sub) => (
-                            <Link
-                              key={sub.id}
-                              to={`/danh-muc/${sub.slug}`}
-                              onClick={() => setOpen(false)}
-                              className="rounded px-2 py-1.5 text-sm hover:bg-primary/10 hover:text-primary transition"
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="text-xs font-semibold text-muted-foreground uppercase">
+                            Danh mục con
+                          </h4>
+                          {selectedSubId != null && (
+                            <button
+                              onClick={() => setSelectedSubId(null)}
+                              className="text-[11px] text-muted-foreground hover:text-primary underline"
                             >
-                              {sub.name}
-                            </Link>
-                          ))}
+                              ← Xem tất cả
+                            </button>
+                          )}
                         </div>
+                        <div className="grid grid-cols-2 gap-1">
+                          {activeCategory.children.map((sub) => {
+                            const selected = selectedSubId === sub.id
+                            return (
+                              <div
+                                key={sub.id}
+                                className={cn(
+                                  'group flex items-center rounded transition',
+                                  selected
+                                    ? 'bg-primary/10 text-primary'
+                                    : 'hover:bg-muted'
+                                )}
+                              >
+                                <button
+                                  onClick={() => setSelectedSubId(selected ? null : sub.id)}
+                                  className={cn(
+                                    'flex-1 truncate px-2 py-1.5 text-left text-sm',
+                                    selected && 'font-medium'
+                                  )}
+                                  title="Chọn để xem thương hiệu + sản phẩm nổi bật"
+                                >
+                                  {sub.name}
+                                </button>
+                                <Link
+                                  to={`/danh-muc/${sub.slug}`}
+                                  onClick={() => setOpen(false)}
+                                  className={cn(
+                                    'shrink-0 rounded p-1.5 mr-0.5 transition',
+                                    selected
+                                      ? 'text-primary hover:bg-primary/20'
+                                      : 'text-muted-foreground opacity-60 hover:opacity-100 hover:bg-background'
+                                  )}
+                                  title={`Mở trang ${sub.name}`}
+                                >
+                                  <ArrowUpRight className="h-3.5 w-3.5" />
+                                </Link>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        <p className="mt-1.5 text-[10px] text-muted-foreground italic">
+                          Bấm tên để lọc theo nhánh, bấm <ArrowUpRight className="inline h-2.5 w-2.5" /> để mở trang.
+                        </p>
                       </div>
                     )}
 
@@ -201,6 +266,7 @@ export function MegaMenu() {
                 </div>
               )}
             </div>
+          </div>
           </div>
         </div>
       )}

@@ -4,6 +4,7 @@ import com.example.LaptopWorld_project.catalog.dto.CollectionDto;
 import com.example.LaptopWorld_project.catalog.dto.CollectionRequest;
 import com.example.LaptopWorld_project.catalog.dto.ProductListItemDto;
 import com.example.LaptopWorld_project.catalog.entity.Collection;
+import com.example.LaptopWorld_project.catalog.entity.HomePosition;
 import com.example.LaptopWorld_project.catalog.entity.Product;
 import com.example.LaptopWorld_project.catalog.mapper.CollectionMapper;
 import com.example.LaptopWorld_project.catalog.mapper.ProductMapper;
@@ -33,10 +34,18 @@ public class CollectionService {
         return collectionMapper.toDtoList(collectionRepository.findAll());
     }
 
+    /** Danh sách collection theo vị trí chip trên homepage (PHONE_CHIP/LAPTOP_CHIP). */
     @Transactional(readOnly = true)
-    public List<CollectionDto> findHomeCollections() {
+    public List<CollectionDto> findByHomePosition(HomePosition position) {
         return collectionMapper.toDtoList(
-                collectionRepository.findByShowOnHomeTrueAndIsActiveTrueOrderBySortOrderAsc());
+                collectionRepository.findByHomePositionAndIsActiveTrueOrderBySortOrderAsc(position));
+    }
+
+    /** Danh sách collection được đánh dấu Nổi bật — cho section "Bộ sưu tập nổi bật". */
+    @Transactional(readOnly = true)
+    public List<CollectionDto> findFeatured() {
+        return collectionMapper.toDtoList(
+                collectionRepository.findByIsFeaturedTrueAndIsActiveTrueOrderBySortOrderAsc());
     }
 
     @Transactional(readOnly = true)
@@ -132,9 +141,10 @@ public class CollectionService {
         entity.setSlug(slug);
         entity.setImage(req.image());
         entity.setDescription(req.description());
-        if (req.isActive() != null)   entity.setActive(req.isActive());
-        if (req.showOnHome() != null) entity.setShowOnHome(req.showOnHome());
-        if (req.sortOrder() != null)  entity.setSortOrder(req.sortOrder());
+        if (req.isActive() != null)     entity.setActive(req.isActive());
+        if (req.homePosition() != null) entity.setHomePosition(req.homePosition());
+        if (req.isFeatured() != null)   entity.setFeatured(req.isFeatured());
+        if (req.sortOrder() != null)    entity.setSortOrder(req.sortOrder());
 
         if (req.parentId() != null) {
             if (req.parentId().equals(entity.getId())) {

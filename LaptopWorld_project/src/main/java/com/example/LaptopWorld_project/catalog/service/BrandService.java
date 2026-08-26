@@ -5,6 +5,7 @@ import com.example.LaptopWorld_project.catalog.dto.BrandRequest;
 import com.example.LaptopWorld_project.catalog.entity.Brand;
 import com.example.LaptopWorld_project.catalog.mapper.BrandMapper;
 import com.example.LaptopWorld_project.catalog.repository.BrandRepository;
+import com.example.LaptopWorld_project.catalog.repository.CategoryRepository;
 import com.example.LaptopWorld_project.catalog.repository.ProductRepository;
 import com.example.LaptopWorld_project.common.exception.BusinessException;
 import com.example.LaptopWorld_project.common.exception.ResourceNotFoundException;
@@ -24,10 +25,29 @@ public class BrandService {
     private final BrandRepository brandRepository;
     private final BrandMapper brandMapper;
     private final ProductRepository productRepository;
+    private final CategoryRepository categoryRepository;
 
     @Transactional(readOnly = true)
     public List<BrandDto> findAllActive() {
         return brandMapper.toDtoList(brandRepository.findByIsActiveTrueOrderByNameAsc());
+    }
+
+    /**
+     * Trả list brand chỉ chứa những brand thực sự có SP đang bán trong category
+     * (và bao gồm cả sub-category con). Dùng cho MegaMenu.
+     */
+    @Transactional(readOnly = true)
+    public List<BrandDto> findByCategory(Long categoryId) {
+        if (categoryId == null) return findAllActive();
+        if (!categoryRepository.existsById(categoryId)) return List.of();
+
+        List<Long> catIds = new java.util.ArrayList<>();
+        catIds.add(categoryId);
+        categoryRepository.findByParentIdOrderBySortOrderAsc(categoryId)
+                .forEach(c -> catIds.add(c.getId()));
+
+        return brandMapper.toDtoList(
+                productRepository.findDistinctBrandsByCategoryIds(catIds));
     }
 
     @Transactional(readOnly = true)

@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { ProductGrid } from '@/components/common/ProductGrid'
 import { Pagination } from '@/components/common/Pagination'
 import { Breadcrumb } from '@/components/common/Breadcrumb'
@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { useCategoryBySlug, useBrands } from '@/hooks/api/useCategories'
+import { useCategoryBySlug, useBrandsByCategory } from '@/hooks/api/useCategories'
 import { useProducts } from '@/hooks/api/useProducts'
 import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -26,13 +26,27 @@ const SPEC_LABELS: Record<string, string> = {
 export function CategoryListPage() {
   const { slug } = useParams<{ slug: string }>()
   const { data: category } = useCategoryBySlug(slug)
-  const { data: brands } = useBrands()
+  // Chỉ hiện brand có SP thực sự trong cat này (bao gồm sub-cat)
+  const { data: brands } = useBrandsByCategory(category?.id)
+
+  // URL query params là source of truth cho brandId/minPrice/maxPrice
+  // → link từ MegaMenu (?brandId=X) hoạt động; back/forward giữ nguyên filter.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const brandIdStr = searchParams.get('brandId')
+  const brandId = brandIdStr ? Number(brandIdStr) : undefined
+  const minPrice = searchParams.get('minPrice') ?? ''
+  const maxPrice = searchParams.get('maxPrice') ?? ''
+
+  // Draft cho ô nhập giá — chỉ commit vào URL khi bấm "Áp dụng"
+  const [minDraft, setMinDraft] = useState(minPrice)
+  const [maxDraft, setMaxDraft] = useState(maxPrice)
+  useEffect(() => { setMinDraft(minPrice); setMaxDraft(maxPrice) }, [minPrice, maxPrice])
 
   const [page, setPage] = useState(0)
   const [sort, setSort] = useState('createdAt,desc')
-  const [brandId, setBrandId] = useState<number | undefined>()
-  const [minPrice, setMinPrice] = useState<string>('')
-  const [maxPrice, setMaxPrice] = useState<string>('')
+
+  // Reset page khi filter đổi
+  useEffect(() => { setPage(0) }, [brandId, minPrice, maxPrice])
 
   const { data, isLoading } = useProducts({
     categoryId: category?.id,
@@ -44,14 +58,23 @@ export function CategoryListPage() {
     size: PAGE_SIZE,
   })
 
-  // Danh sách các spec key có trong category (từ SPEC_LABELS)
   const specKeys = useMemo(() => Object.keys(SPEC_LABELS), [])
 
+  const updateParam = (key: string, value: string | undefined) => {
+    const next = new URLSearchParams(searchParams)
+    if (!value) next.delete(key); else next.set(key, value)
+    setSearchParams(next, { replace: true })
+  }
+
+  const applyPrice = () => {
+    const next = new URLSearchParams(searchParams)
+    if (minDraft) next.set('minPrice', minDraft); else next.delete('minPrice')
+    if (maxDraft) next.set('maxPrice', maxDraft); else next.delete('maxPrice')
+    setSearchParams(next, { replace: true })
+  }
+
   const resetFilter = () => {
-    setBrandId(undefined)
-    setMinPrice('')
-    setMaxPrice('')
-    setPage(0)
+    setSearchParams({}, { replace: true })
   }
 
   return (
@@ -69,7 +92,7 @@ export function CategoryListPage() {
             </CardHeader>
             <CardContent className="space-y-2 max-h-64 overflow-auto">
               <button
-                onClick={() => { setBrandId(undefined); setPage(0) }}
+                onClick={() => updateParam('brandId', undefined)}
                 className={cn(
                   'block w-full text-left text-sm hover:text-primary',
                   !brandId && 'text-primary font-medium'
@@ -80,7 +103,7 @@ export function CategoryListPage() {
               {brands?.map((b) => (
                 <button
                   key={b.id}
-                  onClick={() => { setBrandId(b.id); setPage(0) }}
+                  onClick={() => updateParam('brandId', String(b.id))}
                   className={cn(
                     'block w-full text-left text-sm hover:text-primary',
                     brandId === b.id && 'text-primary font-medium'
@@ -99,13 +122,13 @@ export function CategoryListPage() {
             <CardContent className="space-y-3">
               <div className="space-y-1">
                 <Label className="text-xs">Từ (VND)</Label>
-                <Input value={minPrice} onChange={(e) => setMinPrice(e.target.value)} inputMode="numeric" />
+                <Input value={minDraft} onChange={(e) => setMinDraft(e.target.value)} inputMode="numeric" />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Đến (VND)</Label>
-                <Input value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} inputMode="numeric" />
+                <Input value={maxDraft} onChange={(e) => setMaxDraft(e.target.value)} inputMode="numeric" />
               </div>
-              <Button variant="outline" className="w-full" onClick={() => setPage(0)}>Áp dụng</Button>
+              <Button variant="outline" className="w-full" onClick={applyPrice}>Áp dụng</Button>
             </CardContent>
           </Card>
 

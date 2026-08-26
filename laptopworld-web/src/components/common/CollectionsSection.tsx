@@ -81,15 +81,16 @@ function CollectionPanel({ slug, image, name, description }: PanelProps) {
   return (
     <div className="overflow-hidden rounded-lg border bg-card">
       <div className="grid gap-4 md:grid-cols-[240px_1fr]">
-        {/* Cover */}
-        <div className="relative overflow-hidden bg-muted">
+        {/* Cover — aspect 1:2 (portrait dài) khớp cropper admin, giảm cover-crop tối đa.
+            Mobile 375×750, desktop cột 240×480 min-h. */}
+        <div className="relative overflow-hidden bg-muted aspect-[1/2] md:aspect-auto md:h-full md:min-h-[480px]">
           <SmartImage
             src={image}
             alt={name}
-            className="h-40 w-full object-cover md:h-full"
+            className="h-full w-full object-cover"
             usePicsum
             seed={`collection-${slug}`}
-            fallbackSize="480x480"
+            fallbackSize="480x960"
           />
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 text-white">
             <div className="font-bold">{name}</div>

@@ -1,14 +1,36 @@
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { api, type ApiResponse } from '@/lib/api'
-import type { Collection, ProductListItem } from '@/types/api'
+import type { Collection, HomePosition, ProductListItem } from '@/types/api'
 
-/** Danh sách collection show trên homepage — chỉ những cái showOnHome + active. */
-export function useHomeCollections() {
+/**
+ * Danh sách collection theo vị trí trên homepage.
+ * Position: 'FEATURED_BLOCK' | 'PHONE_CHIP' | 'LAPTOP_CHIP' | 'NONE'.
+ * ADMIN gán qua form Collection.
+ */
+export function useCollectionsByPosition(position: HomePosition) {
   return useQuery({
-    queryKey: ['collections-home'],
+    queryKey: ['collections-by-position', position],
     staleTime: 5 * 60_000,
     queryFn: async () => {
-      const { data } = await api.get<ApiResponse<Collection[]>>('/catalog/collections/home')
+      const { data } = await api.get<ApiResponse<Collection[]>>(
+        `/catalog/collections/by-position/${position}`
+      )
+      return data.data ?? []
+    },
+  })
+}
+
+/**
+ * Danh sách collection được đánh dấu Nổi bật (isFeatured=true).
+ * Dùng cho section "Bộ sưu tập nổi bật" trên HomePage.
+ * Độc lập với homePosition — 1 collection có thể vừa là chip Laptop vừa là featured.
+ */
+export function useHomeCollections() {
+  return useQuery({
+    queryKey: ['collections-featured'],
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data } = await api.get<ApiResponse<Collection[]>>('/catalog/collections/featured')
       return data.data ?? []
     },
   })

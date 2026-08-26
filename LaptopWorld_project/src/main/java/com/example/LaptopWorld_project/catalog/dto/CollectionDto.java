@@ -1,5 +1,7 @@
 package com.example.LaptopWorld_project.catalog.dto;
 
+import com.example.LaptopWorld_project.catalog.entity.HomePosition;
+
 import java.time.OffsetDateTime;
 
 public record CollectionDto(
@@ -10,7 +12,8 @@ public record CollectionDto(
         String description,
         Long parentId,
         boolean isActive,
-        boolean showOnHome,
+        HomePosition homePosition,
+        boolean isFeatured,
         int sortOrder,
         int productCount,
         OffsetDateTime createdAt,

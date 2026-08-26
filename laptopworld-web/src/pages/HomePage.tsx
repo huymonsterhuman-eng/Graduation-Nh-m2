@@ -11,6 +11,7 @@ import { TestimonialSection } from '@/components/common/TestimonialSection'
 import { useBanners, useBannerBySlot } from '@/hooks/api/useBanners'
 import { productImageSrc } from '@/lib/format'
 import { useCategories } from '@/hooks/api/useCategories'
+import { useCollectionsByPosition } from '@/hooks/api/useCollections'
 import { usePosts } from '@/hooks/api/useBlog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Card, CardContent } from '@/components/ui/card'
@@ -23,10 +24,15 @@ export function HomePage() {
   const { data: posts } = usePosts({ size: 3 })
   const { data: phoneSidebar } = useBannerBySlot('sidebar_phone')
   const { data: laptopSidebar } = useBannerBySlot('sidebar_laptop')
+  const { data: phoneChips } = useCollectionsByPosition('PHONE_CHIP')
+  const { data: laptopChips } = useCollectionsByPosition('LAPTOP_CHIP')
 
   const findCat = (slug: string) => tree?.find((c) => c.slug === slug)
   const dienThoai = findCat('dien-thoai')
   const laptop = findCat('laptop')
+
+  const toExtraChips = (cs: typeof laptopChips) =>
+    (cs ?? []).map((c) => ({ label: c.name, collectionSlug: c.slug }))
 
   return (
     <div className="container py-6 space-y-10">
@@ -38,10 +44,11 @@ export function HomePage() {
               {banners.map((b) => (
                 <CarouselItem key={b.id}>
                   <a href={b.link || '#'} className="block overflow-hidden rounded-lg bg-muted">
+                    {/* Aspect 3:1 cố định 2 device — khớp chính xác cropper hero để không cover-crop */}
                     <SmartImage
                       src={b.image}
                       alt={b.title || 'Banner'}
-                      className="w-full h-56 md:h-80 object-cover"
+                      className="w-full aspect-[3/1] object-cover"
                       usePicsum
                       seed={`banner-${b.id}`}
                       fallbackSize="1200x400"
@@ -58,14 +65,14 @@ export function HomePage() {
             )}
           </Carousel>
         ) : (
-          <Skeleton className="w-full h-56 md:h-80 rounded-lg" />
+          <Skeleton className="w-full aspect-[3/1] rounded-lg" />
         )}
       </section>
 
       {/* Flash sale v2 */}
       <FlashSaleBlock />
 
-      {/* Điện thoại — 2 cột */}
+      {/* Điện thoại — 2 cột. Chip use case lấy từ collection homePosition=PHONE_CHIP (admin gán). */}
       {dienThoai && (
         <CategorySection
           title="Điện thoại nổi bật"
@@ -75,10 +82,11 @@ export function HomePage() {
           bannerDesc={phoneSidebar ? undefined : 'Trả góp 0% - Bảo hành 12 tháng'}
           bannerImage={phoneSidebar?.image ? productImageSrc(phoneSidebar.image) : `https://picsum.photos/seed/lw-promo-phone/300/400`}
           bannerLink={phoneSidebar?.link || undefined}
+          extraChips={toExtraChips(phoneChips)}
         />
       )}
 
-      {/* Laptop — 2 cột với chips use case */}
+      {/* Laptop — 2 cột. Chip use case lấy từ collection homePosition=LAPTOP_CHIP (admin gán). */}
       {laptop && (
         <CategorySection
           title="Laptop văn phòng - Gaming"
@@ -88,7 +96,7 @@ export function HomePage() {
           bannerDesc={laptopSidebar ? undefined : 'Chỉ từ 22.99 triệu - Trả góp 0%'}
           bannerImage={laptopSidebar?.image ? productImageSrc(laptopSidebar.image) : `https://picsum.photos/seed/lw-promo-laptop/300/400`}
           bannerLink={laptopSidebar?.link || undefined}
-          extraChips={['Văn phòng', 'Gaming', 'Đồ họa', 'Mỏng nhẹ', 'Sinh viên']}
+          extraChips={toExtraChips(laptopChips)}
         />
       )}
 

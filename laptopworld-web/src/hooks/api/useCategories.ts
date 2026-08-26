@@ -54,3 +54,21 @@ export function useBrands() {
     },
   })
 }
+
+/**
+ * Chỉ lấy brand có SP đang bán trong category (bao gồm sub-category con).
+ * Dùng cho MegaMenu — hover cat → hiện đúng brand thực sự có hàng.
+ */
+export function useBrandsByCategory(categoryId: number | null | undefined) {
+  return useQuery({
+    queryKey: ['brands', 'by-category', categoryId],
+    enabled: !!categoryId,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data } = await api.get<ApiResponse<Brand[]>>('/catalog/brands', {
+        params: { categoryId },
+      })
+      return data.data ?? []
+    },
+  })
+}

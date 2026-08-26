@@ -100,6 +100,8 @@ export interface Category {
   updatedAt?: string
 }
 
+export type HomePosition = 'NONE' | 'PHONE_CHIP' | 'LAPTOP_CHIP'
+
 export interface Collection {
   id: number
   name: string
@@ -108,7 +110,8 @@ export interface Collection {
   description?: string
   parentId?: number
   isActive: boolean
-  showOnHome: boolean
+  homePosition: HomePosition
+  isFeatured: boolean
   sortOrder: number
   productCount: number
   createdAt?: string

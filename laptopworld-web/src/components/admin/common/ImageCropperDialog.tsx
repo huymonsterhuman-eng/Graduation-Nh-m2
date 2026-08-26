@@ -1,7 +1,7 @@
-import { useCallback, useState } from 'react'
-import Cropper, { type Area } from 'react-easy-crop'
+import { useCallback, useEffect, useState } from 'react'
+import Cropper, { type Area, type MediaSize } from 'react-easy-crop'
 import { toast } from 'sonner'
-import { Loader2, Crop as CropIcon, RotateCw } from 'lucide-react'
+import { Loader2, Crop as CropIcon, RotateCw, Maximize2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -40,10 +40,36 @@ export function ImageCropperDialog({
   const [rotation, setRotation] = useState(0)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const [saving, setSaving] = useState(false)
+  const [imgAspect, setImgAspect] = useState<number | null>(null)
 
   const onCropComplete = useCallback((_area: Area, areaPx: Area) => {
     setCroppedAreaPixels(areaPx)
   }, [])
+
+  const onMediaLoaded = useCallback((size: MediaSize) => {
+    setImgAspect(size.naturalWidth / size.naturalHeight)
+  }, [])
+
+  /** Zoom sao cho toàn bộ ảnh gốc nằm gọn trong khung crop (letterbox trắng nếu cần). */
+  const fitToFrame = useCallback(() => {
+    if (!imgAspect) return
+    const zoomFit = Math.min(imgAspect / aspect, aspect / imgAspect)
+    setZoom(Math.max(0.2, Math.min(zoomFit, 1)))
+    setCrop({ x: 0, y: 0 })
+  }, [imgAspect, aspect])
+
+  // Auto-fit khi mở dialog mới hoặc ảnh mới load
+  useEffect(() => {
+    if (open && imgAspect) fitToFrame()
+  }, [open, imgAspect, fitToFrame])
+
+  // Reset khi dialog đóng
+  useEffect(() => {
+    if (!open) {
+      setImgAspect(null)
+      setCroppedAreaPixels(null)
+    }
+  }, [open])
 
   const reset = () => {
     setCrop({ x: 0, y: 0 })
@@ -103,10 +129,14 @@ export function ImageCropperDialog({
             zoom={zoom}
             rotation={rotation}
             aspect={aspect}
+            minZoom={0.2}
+            maxZoom={4}
+            restrictPosition={false}
             onCropChange={setCrop}
             onZoomChange={setZoom}
             onRotationChange={setRotation}
             onCropComplete={onCropComplete}
+            onMediaLoaded={onMediaLoaded}
             objectFit="contain"
           />
         </div>
@@ -117,16 +147,31 @@ export function ImageCropperDialog({
               <span>Zoom</span>
               <span className="font-mono text-xs text-muted-foreground">{zoom.toFixed(2)}x</span>
             </Label>
-            <input
-              id="zoom"
-              type="range"
-              min={1}
-              max={4}
-              step={0.05}
-              value={zoom}
-              onChange={(e) => setZoom(Number(e.target.value))}
-              className="w-full accent-primary"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                id="zoom"
+                type="range"
+                min={0.2}
+                max={4}
+                step={0.05}
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="w-full accent-primary"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={fitToFrame}
+                disabled={!imgAspect}
+                title="Fit toàn ảnh vào khung crop"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              &lt; 1x = thu nhỏ ảnh (khung trống sẽ fill trắng). Bấm <Maximize2 className="inline h-3 w-3" /> để tự fit toàn ảnh vào khung.
+            </p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="rotation" className="flex items-center justify-between">
@@ -214,6 +259,10 @@ async function cropToBlob(src: string, area: Area, rotation: number): Promise<Bl
   canvas.height = area.height
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Không tạo được canvas context')
+  // Fill trắng trước — khi user zoom out < 1x, phần crop rơi ngoài ảnh gốc
+  // sẽ là trắng thay vì đen/trong suốt (JPEG không hỗ trợ transparent).
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, area.width, area.height)
   ctx.drawImage(
     rotatedCanvas,
     area.x, area.y, area.width, area.height,

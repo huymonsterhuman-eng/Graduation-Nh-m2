@@ -152,7 +152,10 @@ export interface CollectionInput {
   description?: string
   parentId?: number | null
   isActive?: boolean
-  showOnHome?: boolean
+  /** Vị trí chip trên homepage — chỉ NONE / PHONE_CHIP / LAPTOP_CHIP. Featured tách riêng. */
+  homePosition?: 'NONE' | 'PHONE_CHIP' | 'LAPTOP_CHIP'
+  /** Toggle "Bộ sưu tập nổi bật" — độc lập với homePosition. */
+  isFeatured?: boolean
   sortOrder?: number
 }
 

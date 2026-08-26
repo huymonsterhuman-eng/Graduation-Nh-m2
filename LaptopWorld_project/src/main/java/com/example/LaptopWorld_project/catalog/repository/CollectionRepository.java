@@ -1,6 +1,7 @@
 package com.example.LaptopWorld_project.catalog.repository;
 
 import com.example.LaptopWorld_project.catalog.entity.Collection;
+import com.example.LaptopWorld_project.catalog.entity.HomePosition;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -12,5 +13,7 @@ public interface CollectionRepository extends JpaRepository<Collection, Long> {
 
     boolean existsBySlug(String slug);
 
-    List<Collection> findByShowOnHomeTrueAndIsActiveTrueOrderBySortOrderAsc();
+    List<Collection> findByHomePositionAndIsActiveTrueOrderBySortOrderAsc(HomePosition position);
+
+    List<Collection> findByIsFeaturedTrueAndIsActiveTrueOrderBySortOrderAsc();
 }

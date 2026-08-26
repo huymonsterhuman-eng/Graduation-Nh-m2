@@ -39,6 +39,20 @@ public interface ProductRepository extends JpaRepository<Product, Long>,
     @Query("SELECT p.brand.id, COUNT(p) FROM Product p WHERE p.brand.id IS NOT NULL GROUP BY p.brand.id")
     java.util.List<Object[]> countGroupByBrandId();
 
+    /**
+     * Lấy list Brand DISTINCT có ít nhất 1 SP đang bán trong các category chỉ định.
+     * Dùng cho MegaMenu: hover category → chỉ hiện brand thực sự có hàng.
+     * @SQLRestriction trên Product tự lọc soft-delete.
+     */
+    @Query("SELECT DISTINCT p.brand FROM Product p " +
+           "WHERE p.brand.id IS NOT NULL " +
+           "AND p.category.id IN :categoryIds " +
+           "AND p.isActive = true " +
+           "AND p.brand.isActive = true " +
+           "ORDER BY p.brand.name ASC")
+    java.util.List<com.example.LaptopWorld_project.catalog.entity.Brand>
+        findDistinctBrandsByCategoryIds(@Param("categoryIds") java.util.List<Long> categoryIds);
+
     @Modifying
     @Query("UPDATE Product p SET p.views = p.views + 1 WHERE p.id = :id")
     int incrementViews(@Param("id") Long id);

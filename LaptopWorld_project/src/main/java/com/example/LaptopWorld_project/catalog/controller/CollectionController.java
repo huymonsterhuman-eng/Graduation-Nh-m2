@@ -3,6 +3,7 @@ package com.example.LaptopWorld_project.catalog.controller;
 import com.example.LaptopWorld_project.catalog.dto.CollectionDto;
 import com.example.LaptopWorld_project.catalog.dto.CollectionRequest;
 import com.example.LaptopWorld_project.catalog.dto.ProductListItemDto;
+import com.example.LaptopWorld_project.catalog.entity.HomePosition;
 import com.example.LaptopWorld_project.catalog.service.CollectionService;
 import com.example.LaptopWorld_project.common.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,10 +22,24 @@ public class CollectionController {
 
     private final CollectionService collectionService;
 
-    @Operation(summary = "Danh sách collection show trên trang chủ")
+    @Operation(summary = "Danh sách collection theo vị trí chip trên homepage " +
+            "(NONE / PHONE_CHIP / LAPTOP_CHIP)")
+    @GetMapping("/api/catalog/collections/by-position/{position}")
+    public ApiResponse<List<CollectionDto>> listByPosition(@PathVariable HomePosition position) {
+        return ApiResponse.ok(collectionService.findByHomePosition(position));
+    }
+
+    @Operation(summary = "Danh sách collection được đánh dấu Nổi bật — " +
+            "cho section 'Bộ sưu tập nổi bật' trên homepage")
+    @GetMapping("/api/catalog/collections/featured")
+    public ApiResponse<List<CollectionDto>> featuredList() {
+        return ApiResponse.ok(collectionService.findFeatured());
+    }
+
+    @Operation(summary = "[BC] Alias cũ cho /featured — giữ để FE cũ không vỡ")
     @GetMapping("/api/catalog/collections/home")
     public ApiResponse<List<CollectionDto>> homeList() {
-        return ApiResponse.ok(collectionService.findHomeCollections());
+        return ApiResponse.ok(collectionService.findFeatured());
     }
 
     @Operation(summary = "Chi tiết collection theo slug")

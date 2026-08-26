@@ -446,6 +446,48 @@ pending → confirmed → preparing → APPROVE → shipping → delivered
     - **Image cropper** — cài `react-easy-crop`, tạo `ImageCropperDialog` (kéo/zoom/xoay + canvas → JPEG blob → upload lại). Auto mở sau upload lần đầu + nút "Cắt lại ảnh". Aspect chuẩn 16:9 hero / 1:3 sidebar. `CategorySection` sidebar chuyển sang `aspect-[1/3]` cứng khớp cropper, ảnh fill 100% object-cover không cắt mép, `self-start` để không stretch grid.
     - **V24** `banners.image_fit` VARCHAR(10) NOT NULL DEFAULT 'cover' — cột thêm trong plan ban đầu (cover/contain) nhưng cropper thay thế mục đích, giữ column không rollback.
 
+  - **Polish round 3 (2026-08-26) — MegaMenu brand filter theo category + hover open + sidebar sync URL:**
+
+    **Bối cảnh bug:** Hover **Danh mục → Điện thoại** → khung Thương hiệu vẫn hiện Acer/Anker/Baseus/Bose/Corsair (những hãng chỉ có laptop/phụ kiện) — click brand ra 0 SP. Ngoài ra `MegaMenu` link truyền `?brandId=X` nhưng `CategoryListPage` bỏ qua URL param → click "Sony" trong menu ra Samsung/iPhone (sort mới nhất).
+
+    *(a) Backend — endpoint mới `GET /api/catalog/brands?categoryId=X`:*
+    - [ProductRepository.findDistinctBrandsByCategoryIds](../src/main/java/com/example/LaptopWorld_project/catalog/repository/ProductRepository.java) — JPQL: `SELECT DISTINCT p.brand FROM Product p WHERE p.brand.id IS NOT NULL AND p.category.id IN :categoryIds AND p.isActive = true AND p.brand.isActive = true ORDER BY p.brand.name ASC`. `@SQLRestriction` trên Product tự lọc soft-delete.
+    - [BrandService.findByCategory(id)](../src/main/java/com/example/LaptopWorld_project/catalog/service/BrandService.java) — inject `CategoryRepository`, gom `parentId + children id` (qua `findByParentIdOrderBySortOrderAsc`) rồi gọi repo. Trả `List<BrandDto>`. Null cat → fallback `findAllActive`; cat không tồn tại → `List.of()`.
+    - [BrandController.list](../src/main/java/com/example/LaptopWorld_project/catalog/controller/BrandController.java) — thêm optional `@RequestParam Long categoryId`. Backward-compatible: không có param thì trả all active như cũ.
+
+    *(b) FE hook mới `useBrandsByCategory(catId)` trong [useCategories.ts](../../laptopworld-web/src/hooks/api/useCategories.ts):*
+    - TanStack Query key `['brands', 'by-category', categoryId]`, `enabled: !!categoryId`, `staleTime: 5 * 60_000`. Hover đi hover lại cùng cat → cache hit, không refetch.
+
+    *(c) [MegaMenu.tsx](../../laptopworld-web/src/components/layout/MegaMenu.tsx) — 3 cải tiến UX:*
+    - **Thương hiệu + Nổi bật lọc theo cat đang hover**: dùng `useBrandsByCategory(effectiveCategoryId)` thay `useBrands()`. Đã có sẵn logic `brands && brands.length > 0 && (...)` — cat rỗng thì khung tự ẩn.
+    - **Sub-cat click-to-lock preview** (thay hover Link):
+      - Mỗi sub-cat có 2 vùng bấm:
+        - **Tên (button)** — click set `selectedSubId` để filter Thương hiệu + Nổi bật theo sub; click lần 2 = unselect toggle. Highlight `bg-primary/10 text-primary font-medium` khi selected.
+        - **Icon `↗` (`ArrowUpRight`, Link)** — mở trang `/danh-muc/{sub.slug}` + đóng menu. Icon `opacity-60` khi chưa chọn, đậm khi đã chọn.
+      - Link **"← Xem tất cả"** ở góc phải khung header — hiện khi `selectedSubId != null`, click reset về cat cha.
+      - Hint 1 dòng dưới khung: *"Bấm tên để lọc theo nhánh, bấm ↗ để mở trang."*
+      - `useEffect([activeId], () => setSelectedSubId(null))` — chuyển cat cha khác auto reset sub selected.
+      - **Trước đó thử hover** (auto-set trên `onMouseEnter` sub): user feedback "di chuột dễ vào sub khác vô ý" → chuyển sang click-to-lock (hướng B, bỏ debounce hướng A và safe triangle hướng C do over-engineering).
+    - **Hover mở menu** (thay click toggle):
+      - `onMouseEnter/Leave` trên container `<div ref={containerRef}>` — set `open` state.
+      - Delay đóng 150ms qua `closeTimerRef` (`useRef<number | null>`) — tránh menu đóng vô ý khi chuột lướt qua bridge.
+      - Panel wrapper **`pt-2` thay `mt-2`** — 8px padding-top làm "bridge" invisible giữa button và card, chuột di thẳng xuống không rời container. Tách wrapper thành 2 div: outer positioning (`absolute top-full pt-2`), inner card (`rounded-lg border shadow-2xl overflow-hidden`).
+      - Vẫn giữ `onClick` toggle trên button cho mobile/touch (không có hover event).
+
+    *(d) [CategoryListPage.tsx](../../laptopworld-web/src/pages/CategoryListPage.tsx) — 2 fix cùng lúc:*
+    - **Sidebar filter brand dùng `useBrandsByCategory(category?.id)`** — chỉ hiện brand có SP thực sự trong cat. Consistency với MegaMenu (cùng gọi endpoint).
+    - **URL query params làm source of truth** cho `brandId`/`minPrice`/`maxPrice`:
+      - Trước: `useState` local → link `?brandId=X` từ MegaMenu bị bỏ qua → filter không áp dụng → hiện tất cả SP cat → sort mới nhất → user click "Sony" ra Samsung.
+      - Nay: `const [searchParams, setSearchParams] = useSearchParams()`. `brandId` derive từ `searchParams.get('brandId')`. Click brand ở sidebar → `updateParam('brandId', String(b.id))` → `setSearchParams(next, { replace: true })`. Back/forward giữ nguyên filter.
+      - Ô nhập giá dùng draft state (`minDraft`/`maxDraft`) + sync 2 chiều với URL qua `useEffect([minPrice, maxPrice])`. Commit vào URL chỉ khi bấm "Áp dụng".
+      - `useEffect([brandId, minPrice, maxPrice], () => setPage(0))` — reset về trang 1 khi filter đổi.
+
+    **File thay đổi:**
+    - Backend (3): [ProductRepository.java](../src/main/java/com/example/LaptopWorld_project/catalog/repository/ProductRepository.java), [BrandService.java](../src/main/java/com/example/LaptopWorld_project/catalog/service/BrandService.java), [BrandController.java](../src/main/java/com/example/LaptopWorld_project/catalog/controller/BrandController.java)
+    - Frontend (3): [useCategories.ts](../../laptopworld-web/src/hooks/api/useCategories.ts), [MegaMenu.tsx](../../laptopworld-web/src/components/layout/MegaMenu.tsx), [CategoryListPage.tsx](../../laptopworld-web/src/pages/CategoryListPage.tsx)
+
+    **User verify:** hover Điện thoại → Thương hiệu chỉ còn Apple/Samsung/Google/Sony; click "Sony" ở MegaMenu → CategoryListPage filter đúng theo Sony; sub-cat "Tai nghe" click → khung Thương hiệu + Nổi bật đổi theo tai nghe, giữ nguyên khi di chuột sang khung Nổi bật để click SP; hover menu mượt, không đóng vô ý khi lướt qua bridge.
+
 ### Sprint còn lại
 
 - [ ] **Sprint 9G-perm — Phân quyền chi tiết theo mẫu TGDĐ + fix Product page** (~3 buổi) — **làm TRƯỚC Sprint 9G**
