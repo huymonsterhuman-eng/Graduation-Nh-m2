@@ -29,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -53,13 +54,28 @@ public class ProductService {
                                                     BigDecimal minPrice,
                                                     BigDecimal maxPrice,
                                                     Pageable pageable) {
-        var spec = ProductSpecifications.withFilter(keyword, categoryId, brandId,
+        List<Long> categoryIds = resolveCategoryIdsWithChildren(categoryId);
+        var spec = ProductSpecifications.withFilter(keyword, categoryIds, brandId,
                                                     minPrice, maxPrice, true);
         Page<Product> page = productRepository.findAll(spec, pageable);
         List<ProductListItemDto> items = enrichWithRatings(page.getContent());
         return new PagedResponse<>(items, page.getNumber(), page.getSize(),
                 page.getTotalElements(), page.getTotalPages(),
                 page.hasNext(), page.hasPrevious());
+    }
+
+    /**
+     * Nếu category là cha (có con) → trả [catId, ...tất cả id con].
+     * Nếu là lá → trả [catId]. Null → null.
+     * Dùng cho public search để click "Xem tất cả Phụ kiện" (parent) vẫn ra SP của các con.
+     */
+    private List<Long> resolveCategoryIdsWithChildren(Long categoryId) {
+        if (categoryId == null) return null;
+        List<Long> ids = new ArrayList<>();
+        ids.add(categoryId);
+        categoryRepository.findByParentIdOrderBySortOrderAsc(categoryId)
+                .forEach(c -> ids.add(c.getId()));
+        return ids;
     }
 
     @Transactional
@@ -79,7 +95,7 @@ public class ProductService {
 
         var pageable = PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "views"));
         var spec = ProductSpecifications.withFilter(null,
-                                                    product.getCategory().getId(),
+                                                    List.of(product.getCategory().getId()),
                                                     null, null, null, true);
         Page<Product> page = productRepository.findAll(spec, pageable);
         List<Product> filtered = page.getContent().stream()

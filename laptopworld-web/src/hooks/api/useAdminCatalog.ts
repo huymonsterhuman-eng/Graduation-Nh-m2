@@ -78,6 +78,23 @@ export function useAdminCategories() {
   })
 }
 
+/**
+ * Đếm SP đang có giá trị non-empty cho từng key trong spec template.
+ * Dùng để khoá UI đổi kiểu / xoá field khi đang có SP dùng.
+ */
+export function useCategorySpecUsage(categoryId: number | null | undefined) {
+  return useQuery({
+    queryKey: ['admin', 'category-spec-usage', categoryId],
+    enabled: !!categoryId,
+    queryFn: async () => {
+      const { data } = await api.get<ApiResponse<Record<string, number>>>(
+        `/admin/categories/${categoryId}/spec-usage`
+      )
+      return data.data ?? {}
+    },
+  })
+}
+
 export interface CategoryInput {
   name: string
   slug?: string

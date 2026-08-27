@@ -13,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @Tag(name = "Category", description = "Danh mục sản phẩm — public read + admin CRUD")
 @RestController
@@ -69,5 +70,12 @@ public class CategoryController {
     public ApiResponse<Void> delete(@PathVariable Long id) {
         categoryService.delete(id);
         return ApiResponse.message("Đã xóa danh mục");
+    }
+
+    @Operation(summary = "[Admin] Đếm SP đang dùng từng field spec — dùng để khoá UI đổi kiểu/xoá")
+    @GetMapping("/api/admin/categories/{id}/spec-usage")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('manage_categories') or hasAuthority('view_categories')")
+    public ApiResponse<Map<String, Integer>> specUsage(@PathVariable Long id) {
+        return ApiResponse.ok(categoryService.getSpecUsage(id));
     }
 }

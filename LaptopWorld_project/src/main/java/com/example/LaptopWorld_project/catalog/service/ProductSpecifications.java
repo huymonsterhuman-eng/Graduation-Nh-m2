@@ -7,6 +7,7 @@ import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -27,7 +28,7 @@ public final class ProductSpecifications {
     }
 
     public static Specification<Product> withFilter(String keyword,
-                                                    Long categoryId,
+                                                    Collection<Long> categoryIds,
                                                     Long brandId,
                                                     BigDecimal minPrice,
                                                     BigDecimal maxPrice,
@@ -47,8 +48,8 @@ public final class ProductSpecifications {
                         cb.like(cb.lower(cb.coalesce(root.get("shortDescription"), "")), pattern)
                 ));
             }
-            if (categoryId != null) {
-                predicates.add(cb.equal(root.get("category").get("id"), categoryId));
+            if (categoryIds != null && !categoryIds.isEmpty()) {
+                predicates.add(root.get("category").get("id").in(categoryIds));
             }
             if (brandId != null) {
                 predicates.add(cb.equal(root.get("brand").get("id"), brandId));

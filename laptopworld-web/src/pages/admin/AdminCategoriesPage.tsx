@@ -18,6 +18,7 @@ import { SpecTemplateEditor } from '@/components/admin/common/SpecTemplateEditor
 import { productImageSrc } from '@/lib/format'
 import {
   useAdminCategories, useCreateCategory, useUpdateCategory, useDeleteCategory,
+  useCategorySpecUsage,
   type CategoryInput,
 } from '@/hooks/api/useAdminCatalog'
 import type { Category, SpecField } from '@/types/api'
@@ -44,6 +45,9 @@ export function AdminCategoriesPage() {
   const [editing, setEditing] = useState<Category | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm())
   const [keyword, setKeyword] = useState('')
+
+  // Đếm SP đang dùng từng field — chỉ query khi edit
+  const { data: specUsage } = useCategorySpecUsage(editing?.id)
 
   const filtered = useMemo(() => {
     if (!data) return []
@@ -306,6 +310,7 @@ export function AdminCategoriesPage() {
           <SpecTemplateEditor
             value={form.specTemplate}
             onChange={(v) => setForm({ ...form, specTemplate: v })}
+            usage={editing ? specUsage : undefined}
           />
         </div>
 

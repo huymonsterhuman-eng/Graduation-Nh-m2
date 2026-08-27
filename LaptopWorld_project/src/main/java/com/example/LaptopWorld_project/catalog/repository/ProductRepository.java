@@ -72,4 +72,20 @@ public interface ProductRepository extends JpaRepository<Product, Long>,
     @Query(value = "UPDATE products SET deleted_at = NULL WHERE id = :id AND deleted_at IS NOT NULL",
            nativeQuery = true)
     int restoreSoftDeleted(@Param("id") Long id);
+
+    /**
+     * Đếm số SP đang có giá trị non-empty cho từng key trong template thông số kỹ thuật.
+     * Dùng để chặn admin đổi kiểu / xoá field khi đang có SP dùng.
+     * Chỉ đếm SP active + chưa soft-delete + specs JSONB không null + value non-empty.
+     */
+    @Query(value = """
+            SELECT entry.k AS key, COUNT(*) AS n
+            FROM products p, LATERAL jsonb_each_text(p.specs) AS entry(k, v)
+            WHERE p.category_id = :categoryId
+              AND p.deleted_at IS NULL
+              AND p.specs IS NOT NULL
+              AND entry.v IS NOT NULL AND entry.v <> '' AND entry.v <> 'null'
+            GROUP BY entry.k
+            """, nativeQuery = true)
+    java.util.List<Object[]> countSpecUsageByCategoryId(@Param("categoryId") Long categoryId);
 }

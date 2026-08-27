@@ -88,8 +88,26 @@ public class CategoryService {
         if (!slug.equals(entity.getSlug()) && categoryRepository.existsBySlug(slug)) {
             throw new BusinessException("SLUG_TAKEN", "Slug đã tồn tại: " + slug);
         }
+        // Bảo vệ SP đã có giá trị: cấm đổi type / xoá field đang được dùng
+        validateSpecTemplateChanges(id, entity.getSpecTemplate(), req.specTemplate());
         applyRequest(entity, req, slug);
         return categoryMapper.toDto(categoryRepository.save(entity));
+    }
+
+    /**
+     * Đếm số SP đang có giá trị non-empty cho từng key của danh mục.
+     * Endpoint dành cho FE khoá UI (disable Select Kiểu + nút Xoá field).
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Integer> getSpecUsage(Long categoryId) {
+        if (!categoryRepository.existsById(categoryId)) return Map.of();
+        Map<String, Integer> result = new HashMap<>();
+        for (Object[] row : productRepository.countSpecUsageByCategoryId(categoryId)) {
+            String key = (String) row[0];
+            Number count = (Number) row[1];
+            result.put(key, count.intValue());
+        }
+        return result;
     }
 
     @Transactional
@@ -127,6 +145,7 @@ public class CategoryService {
         entity.setSlug(slug);
         entity.setDescription(req.description());
         entity.setImage(req.image());
+        validateSpecTemplate(req.specTemplate());
         entity.setSpecTemplate(req.specTemplate());
         if (req.isActive() != null)  entity.setActive(req.isActive());
         if (req.sortOrder() != null) entity.setSortOrder(req.sortOrder());
@@ -138,6 +157,82 @@ public class CategoryService {
             entity.setParent(getByIdOrThrow(req.parentId()));
         } else {
             entity.setParent(null);
+        }
+    }
+
+    /**
+     * Chặn admin đổi kiểu / xoá field khi SP đã có giá trị cho field đó.
+     * Đổi label vẫn cho phép vì không gãy dữ liệu (chỉ đổi chữ hiển thị).
+     */
+    private void validateSpecTemplateChanges(Long categoryId,
+                                             List<Map<String, Object>> oldTemplate,
+                                             List<Map<String, Object>> newTemplate) {
+        if (oldTemplate == null || oldTemplate.isEmpty()) return;
+        Map<String, Integer> usage = getSpecUsage(categoryId);
+        if (usage.isEmpty()) return;
+
+        Map<String, String> newTypeByKey = new HashMap<>();
+        if (newTemplate != null) {
+            for (Map<String, Object> f : newTemplate) {
+                Object k = f.get("key");
+                Object t = f.get("type");
+                if (k != null) newTypeByKey.put(k.toString(), t == null ? "text" : t.toString());
+            }
+        }
+
+        for (Map<String, Object> oldField : oldTemplate) {
+            Object oldKeyObj = oldField.get("key");
+            if (oldKeyObj == null) continue;
+            String key = oldKeyObj.toString();
+            Integer used = usage.get(key);
+            if (used == null || used == 0) continue;
+
+            Object oldLabelObj = oldField.get("label");
+            String label = oldLabelObj == null ? key : oldLabelObj.toString();
+
+            if (!newTypeByKey.containsKey(key)) {
+                throw new BusinessException("SPEC_KEY_IN_USE_CANNOT_DELETE",
+                        "Không thể xoá trường \"" + label + "\": đang có " + used
+                                + " sản phẩm dùng. Xoá giá trị ở SP trước hoặc đổi danh mục cho SP.");
+            }
+            String oldType = oldField.get("type") == null ? "text" : oldField.get("type").toString();
+            String newType = newTypeByKey.get(key);
+            if (!oldType.equals(newType)) {
+                throw new BusinessException("SPEC_TYPE_LOCKED",
+                        "Không thể đổi kiểu dữ liệu của trường \"" + label + "\": đang có "
+                                + used + " sản phẩm dùng.");
+            }
+        }
+    }
+
+    /**
+     * Chặn spec template không hợp lệ trước khi lưu:
+     * - Nhãn không được rỗng
+     * - Key không được rỗng (được FE tự sinh từ nhãn nhưng vẫn double-check)
+     * - Key không được trùng nhau trong cùng 1 template (tránh SP ghi chồng)
+     */
+    private void validateSpecTemplate(List<Map<String, Object>> template) {
+        if (template == null || template.isEmpty()) return;
+        java.util.Set<String> seenKeys = new java.util.HashSet<>();
+        for (int i = 0; i < template.size(); i++) {
+            Map<String, Object> field = template.get(i);
+            Object labelObj = field.get("label");
+            Object keyObj = field.get("key");
+            String label = labelObj == null ? "" : labelObj.toString().trim();
+            String key = keyObj == null ? "" : keyObj.toString().trim();
+
+            if (label.isBlank()) {
+                throw new BusinessException("SPEC_LABEL_BLANK",
+                        "Trường số " + (i + 1) + " thiếu nhãn hiển thị");
+            }
+            if (key.isBlank()) {
+                throw new BusinessException("SPEC_KEY_BLANK",
+                        "Trường \"" + label + "\" chưa có mã định danh (key)");
+            }
+            if (!seenKeys.add(key)) {
+                throw new BusinessException("SPEC_KEY_DUPLICATED",
+                        "Trường \"" + label + "\" bị trùng với trường khác — hãy đổi nhãn cho khác biệt");
+            }
         }
     }
 }

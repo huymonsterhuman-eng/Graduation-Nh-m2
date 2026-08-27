@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card'
 import { useCategories } from '@/hooks/api/useCategories'
 import { Headphones, Zap, Mouse, Keyboard, Battery, Speaker, Package } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
+import { productImageSrc } from '@/lib/format'
 
 const ICON_MAP: Record<string, typeof Headphones> = {
   'tai-nghe': Headphones,
@@ -42,9 +43,17 @@ export function AccessoriesSection() {
             return (
               <Link key={c.id} to={`/danh-muc/${c.slug}`}>
                 <Card className="flex h-full flex-col items-center justify-center gap-2 p-4 text-center transition hover:border-primary hover:shadow-md">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-primary-foreground">
-                    <Icon className="h-6 w-6" />
-                  </div>
+                  {c.image ? (
+                    <img
+                      src={productImageSrc(c.image)}
+                      alt={c.name}
+                      className="h-12 w-12 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-primary-foreground">
+                      <Icon className="h-6 w-6" />
+                    </div>
+                  )}
                   <span className="text-xs font-medium">{c.name}</span>
                 </Card>
               </Link>
