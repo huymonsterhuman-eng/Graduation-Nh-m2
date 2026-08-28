@@ -145,11 +145,14 @@ public class CartService {
                 .findFirst()
                 .orElseGet(() -> p.getImages().isEmpty() ? null : p.getImages().get(0).getPath());
 
+        // stockAvailable = stock thực - reserved (giữ chỗ bởi các order pending/confirmed/preparing).
+        // Trước dùng p.getStock() gây bug: sau khi khách khác đặt hàng, reserved tăng nhưng
+        // cart của user hiện tại vẫn thấy đủ hàng, tới lúc bấm Đặt hàng mới bị INSUFFICIENT_STOCK.
         return new CartDto.CartItemDto(
                 item.getId(), p.getId(), p.getName(), p.getSlug(), primaryImg,
                 item.getQuantity(), item.getPriceSnapshot(), currentPrice, changed,
                 currentPrice.multiply(BigDecimal.valueOf(item.getQuantity())),
-                p.getStock(), p.isActive()
+                p.getAvailableStock(), p.isActive()
         );
     }
 }

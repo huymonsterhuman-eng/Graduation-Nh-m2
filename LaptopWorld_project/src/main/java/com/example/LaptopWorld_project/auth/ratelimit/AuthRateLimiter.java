@@ -41,9 +41,15 @@ public class AuthRateLimiter {
     private static final int FORGOT_MAX = 3;
     private static final long FORGOT_WINDOW_SEC = 3600;
 
+    // Checkout: 10 don / 900 giay (15 phut) theo user ID.
+    // Chan bot spam tao don VNPay-unpaid ep can reserved_stock.
+    private static final int CHECKOUT_MAX = 10;
+    private static final long CHECKOUT_WINDOW_SEC = 900;
+
     private final ConcurrentMap<String, Bucket> loginBuckets = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Bucket> registerBuckets = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Bucket> forgotBuckets = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Bucket> checkoutBuckets = new ConcurrentHashMap<>();
 
     /** Kiem tra login rate limit. Throws BusinessException 429 neu vuot. */
     public void checkLogin(HttpServletRequest req) {
@@ -64,6 +70,18 @@ public class AuthRateLimiter {
         checkAndConsume(forgotBuckets, resolveClientIp(req),
                 FORGOT_MAX, FORGOT_WINDOW_SEC,
                 "forgot-password", "Quá nhiều yêu cầu quên mật khẩu, vui lòng thử lại sau 1 giờ.");
+    }
+
+    /**
+     * Rate limit checkout theo user ID. Admin (username "admin") bypass để không chan demo.
+     * Bucket key = "user:{id}" — mỗi user độc lập, không ảnh hưởng lẫn nhau.
+     */
+    public void checkCheckout(Long userId, String username) {
+        if (userId == null) return;
+        if ("admin".equalsIgnoreCase(username)) return; // Bypass admin demo
+        checkAndConsume(checkoutBuckets, "user:" + userId,
+                CHECKOUT_MAX, CHECKOUT_WINDOW_SEC,
+                "checkout", "Bạn đã đặt quá nhiều đơn trong 15 phút, vui lòng thử lại sau.");
     }
 
     // ==================== helpers ====================

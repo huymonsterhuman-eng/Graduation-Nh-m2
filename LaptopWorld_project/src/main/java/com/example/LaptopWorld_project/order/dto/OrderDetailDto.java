@@ -37,6 +37,9 @@ public record OrderDetailDto(
         OffsetDateTime cancelledAt,
         OffsetDateTime createdAt,
 
+        /** VNPay unpaid: countdown FE. Null nếu COD hoặc đã paid. */
+        OffsetDateTime paymentExpiresAt,
+
         List<OrderItemDto> items
 ) {
     public record OrderItemDto(

@@ -79,3 +79,13 @@ export function useCancelOrder() {
     },
   })
 }
+
+/** Sinh URL VNPay mới cho đơn chưa thanh toán — dùng bởi nút "Thanh toán lại" ở OrderDetailPage. */
+export function useRepayVnpay() {
+  return useMutation({
+    mutationFn: async (code: string) => {
+      const { data } = await api.post<ApiResponse<{ paymentUrl: string }>>(`/orders/${code}/repay`)
+      return data.data!.paymentUrl
+    },
+  })
+}

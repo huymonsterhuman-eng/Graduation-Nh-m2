@@ -20,6 +20,8 @@ import com.example.LaptopWorld_project.inventory.repository.GoodsReceiptDetailRe
 import com.example.LaptopWorld_project.order.repository.OrderDetailRepository;
 import com.example.LaptopWorld_project.review.dto.RatingSummaryDto;
 import com.example.LaptopWorld_project.review.service.ReviewService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -46,6 +48,9 @@ public class ProductService {
     private final GoodsReceiptDetailRepository goodsReceiptDetailRepository;
     private final GoodsIssueDetailRepository goodsIssueDetailRepository;
 
+    @PersistenceContext
+    private EntityManager em;
+
     // ==================== PUBLIC READ ====================
     @Transactional(readOnly = true)
     public PagedResponse<ProductListItemDto> search(String keyword,
@@ -54,15 +59,80 @@ public class ProductService {
                                                     BigDecimal minPrice,
                                                     BigDecimal maxPrice,
                                                     Pageable pageable) {
+        return search(keyword, categoryId, brandId, minPrice, maxPrice, null, pageable);
+    }
+
+    /** Overload có thêm specs filter — dùng ở trang danh mục user site. */
+    @Transactional(readOnly = true)
+    public PagedResponse<ProductListItemDto> search(String keyword,
+                                                    Long categoryId,
+                                                    Long brandId,
+                                                    BigDecimal minPrice,
+                                                    BigDecimal maxPrice,
+                                                    Map<String, List<String>> specs,
+                                                    Pageable pageable) {
         List<Long> categoryIds = resolveCategoryIdsWithChildren(categoryId);
         var spec = ProductSpecifications.withFilter(keyword, categoryIds, brandId,
-                                                    minPrice, maxPrice, true);
+                                                    minPrice, maxPrice, true, specs);
         Page<Product> page = productRepository.findAll(spec, pageable);
         List<ProductListItemDto> items = enrichWithRatings(page.getContent());
         return new PagedResponse<>(items, page.getNumber(), page.getSize(),
                 page.getTotalElements(), page.getTotalPages(),
                 page.hasNext(), page.hasPrevious());
     }
+
+    /**
+     * Trả danh sách value + count cho từng key thông số kỹ thuật của 1 category
+     * (đã bao gồm sub-cat con). Top N value/key sort theo count desc.
+     * Chỉ hiện key có trong spec_template của category để bỏ noise key cũ.
+     */
+    @Transactional(readOnly = true)
+    public java.util.List<SpecFilterGroup> findSpecValuesByCategory(Long categoryId, int topPerKey) {
+        if (categoryId == null) return java.util.List.of();
+        List<Long> categoryIds = resolveCategoryIdsWithChildren(categoryId);
+        if (categoryIds == null || categoryIds.isEmpty()) return java.util.List.of();
+
+        // Load parent template để lấy label + thứ tự hiển thị
+        Category parent = categoryRepository.findById(categoryId).orElse(null);
+        java.util.LinkedHashMap<String, String> templateOrder = new java.util.LinkedHashMap<>();
+        if (parent != null && parent.getSpecTemplate() != null) {
+            for (var f : parent.getSpecTemplate()) {
+                Object k = f.get("key"); Object l = f.get("label");
+                if (k != null) templateOrder.put(k.toString(), l != null ? l.toString() : k.toString());
+            }
+        }
+
+        List<Object[]> rows = productRepository.aggregateSpecValuesByCategoryIds(categoryIds);
+        // Group: key -> list of (value, count)
+        java.util.Map<String, java.util.List<SpecFilterValue>> grouped = new java.util.LinkedHashMap<>();
+        for (Object[] row : rows) {
+            String key = (String) row[0];
+            String value = (String) row[1];
+            long count = ((Number) row[2]).longValue();
+            grouped.computeIfAbsent(key, k -> new java.util.ArrayList<>())
+                   .add(new SpecFilterValue(value, count));
+        }
+
+        java.util.List<SpecFilterGroup> result = new java.util.ArrayList<>();
+        // Ưu tiên key theo thứ tự trong spec_template
+        java.util.LinkedHashSet<String> ordered = new java.util.LinkedHashSet<>(templateOrder.keySet());
+        for (String key : grouped.keySet()) ordered.add(key);
+
+        for (String key : ordered) {
+            var values = grouped.get(key);
+            if (values == null || values.isEmpty()) continue;
+            values.sort((a, b) -> Long.compare(b.count(), a.count()));
+            if (topPerKey > 0 && values.size() > topPerKey) {
+                values = new java.util.ArrayList<>(values.subList(0, topPerKey));
+            }
+            String label = templateOrder.getOrDefault(key, key);
+            result.add(new SpecFilterGroup(key, label, values));
+        }
+        return result;
+    }
+
+    public record SpecFilterValue(String value, long count) {}
+    public record SpecFilterGroup(String key, String label, java.util.List<SpecFilterValue> values) {}
 
     /**
      * Nếu category là cha (có con) → trả [catId, ...tất cả id con].
@@ -288,8 +358,14 @@ public class ProductService {
         }
 
         // Images: replace all (đơn giản — update = xóa cũ + thêm mới)
+        // Flush sau clear() để DELETE chạy trước INSERT — nếu không, Hibernate có thể
+        // INSERT ảnh primary mới TRƯỚC khi DELETE ảnh primary cũ → vi phạm partial
+        // unique index `ux_product_images_one_primary`.
         if (req.images() != null) {
-            entity.getImages().clear();
+            if (!entity.getImages().isEmpty()) {
+                entity.getImages().clear();
+                em.flush();
+            }
             for (ProductRequest.ImageInput img : req.images()) {
                 ProductImage pi = new ProductImage();
                 pi.setPath(img.path());

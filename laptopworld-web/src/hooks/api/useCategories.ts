@@ -55,6 +55,38 @@ export function useBrands() {
   })
 }
 
+/** Value + count cho 1 spec key. */
+export interface SpecFilterValue {
+  value: string
+  count: number
+}
+
+/** Group value theo key thông số. */
+export interface SpecFilterGroup {
+  key: string
+  label: string
+  values: SpecFilterValue[]
+}
+
+/**
+ * Aggregate distinct value + count cho từng key trong spec_template của category
+ * (bao gồm sub-cat). Dùng để build filter panel ở trang danh mục user.
+ */
+export function useSpecValues(categoryId: number | null | undefined, topPerKey = 15) {
+  return useQuery({
+    queryKey: ['spec-values', categoryId, topPerKey],
+    enabled: !!categoryId,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data } = await api.get<ApiResponse<SpecFilterGroup[]>>(
+        `/catalog/categories/${categoryId}/spec-values`,
+        { params: { topPerKey } }
+      )
+      return data.data ?? []
+    },
+  })
+}
+
 /**
  * Chỉ lấy brand có SP đang bán trong category (bao gồm sub-category con).
  * Dùng cho MegaMenu — hover cat → hiện đúng brand thực sự có hàng.

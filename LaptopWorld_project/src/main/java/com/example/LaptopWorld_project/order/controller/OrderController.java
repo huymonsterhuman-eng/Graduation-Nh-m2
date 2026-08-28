@@ -1,6 +1,7 @@
 package com.example.LaptopWorld_project.order.controller;
 
 import com.example.LaptopWorld_project.auth.UserPrincipal;
+import com.example.LaptopWorld_project.auth.ratelimit.AuthRateLimiter;
 import com.example.LaptopWorld_project.common.dto.ApiResponse;
 import com.example.LaptopWorld_project.common.dto.PagedResponse;
 import com.example.LaptopWorld_project.order.dto.CheckoutRequest;
@@ -10,6 +11,8 @@ import com.example.LaptopWorld_project.order.dto.OrderListItemDto;
 import com.example.LaptopWorld_project.order.entity.OrderStatus;
 import com.example.LaptopWorld_project.order.service.CheckoutService;
 import com.example.LaptopWorld_project.order.service.OrderService;
+
+import java.util.Map;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -27,15 +30,28 @@ public class OrderController {
 
     private final CheckoutService checkoutService;
     private final OrderService orderService;
+    private final AuthRateLimiter rateLimiter;
 
     @Operation(summary = "Đặt hàng từ giỏ hàng hiện tại — trả kèm paymentUrl nếu VNPay/MoMo")
     @PostMapping("/api/checkout")
     public ApiResponse<CheckoutResponse> checkout(@AuthenticationPrincipal UserPrincipal me,
                                                   @Valid @RequestBody CheckoutRequest req,
                                                   jakarta.servlet.http.HttpServletRequest request) {
+        // Rate limit checkout: max 10 đơn / 15 phút / user (ADMIN bypass để demo).
+        // Chặn bot spam tạo đơn VNPay-unpaid ép cạn reserved_stock.
+        rateLimiter.checkCheckout(me.getId(), me.getUsername());
         String clientIp = extractClientIp(request);
         return ApiResponse.ok("Đặt hàng thành công",
                 checkoutService.placeOrder(me.getId(), req, clientIp));
+    }
+
+    @Operation(summary = "Sinh lại URL VNPay cho đơn chưa thanh toán — nút 'Thanh toán lại'")
+    @PostMapping("/api/orders/{code}/repay")
+    public ApiResponse<Map<String, String>> repay(@AuthenticationPrincipal UserPrincipal me,
+                                                  @PathVariable String code,
+                                                  jakarta.servlet.http.HttpServletRequest request) {
+        String paymentUrl = orderService.repayVnpay(me.getId(), code, extractClientIp(request));
+        return ApiResponse.ok(Map.of("paymentUrl", paymentUrl));
     }
 
     private static String extractClientIp(jakarta.servlet.http.HttpServletRequest req) {

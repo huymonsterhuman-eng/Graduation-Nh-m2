@@ -12,6 +12,7 @@ import { CategoryListPage } from '@/pages/CategoryListPage'
 import { ProductDetailPage } from '@/pages/ProductDetailPage'
 import { SearchPage } from '@/pages/SearchPage'
 import { BlogListPage } from '@/pages/BlogListPage'
+import { AboutPage } from '@/pages/AboutPage'
 import { BlogDetailPage } from '@/pages/BlogDetailPage'
 import { ComparePage } from '@/pages/ComparePage'
 import { CartPage } from '@/pages/CartPage'
@@ -51,6 +52,7 @@ import { AdminPartnersPage } from '@/pages/admin/AdminPartnersPage'
 import { AdminGoodsReceiptsPage } from '@/pages/admin/AdminGoodsReceiptsPage'
 import { AdminGoodsIssuesPage } from '@/pages/admin/AdminGoodsIssuesPage'
 import { AdminInventoryPage } from '@/pages/admin/AdminInventoryPage'
+import { AdminReservedStockAuditPage } from '@/pages/admin/AdminReservedStockAuditPage'
 import { AdminBannersPage } from '@/pages/admin/AdminBannersPage'
 import { AdminVouchersPage } from '@/pages/admin/AdminVouchersPage'
 import { AdminReviewsPage } from '@/pages/admin/AdminReviewsPage'
@@ -96,6 +98,7 @@ function App() {
             <Route path="/tim-kiem" element={<SearchPage />} />
 
             {/* Blog */}
+            <Route path="/gioi-thieu" element={<AboutPage />} />
             <Route path="/tin-tuc" element={<BlogListPage />} />
             <Route path="/tin-tuc/:slug" element={<BlogDetailPage />} />
 
@@ -169,6 +172,7 @@ function App() {
             <Route path="phieu-xuat" element={<AdminGoodsIssuesPage />} />
             <Route path="phieu-xuat/moi" element={<AdminCreateIssuePage />} />
             <Route path="ton-kho" element={<AdminInventoryPage />} />
+            <Route path="kiem-toan-kho" element={<AdminReservedStockAuditPage />} />
             <Route path="doi-tac" element={<AdminPartnersPage />} />
 
             {/* Nội dung */}

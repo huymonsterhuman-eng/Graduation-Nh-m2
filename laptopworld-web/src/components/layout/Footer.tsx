@@ -35,18 +35,36 @@ export function Footer() {
             Cửa hàng laptop, điện thoại, phụ kiện chính hãng — bảo hành toàn quốc, giao nhanh 2h.
           </p>
           <div className="space-y-1 text-sm text-muted-foreground">
-            <p className="flex items-center gap-2"><MapPin className="h-4 w-4" /> 123 Nguyễn Văn Cừ, Q.5, TP.HCM</p>
+            <p className="flex items-center gap-2"><MapPin className="h-4 w-4" /> Cầu Giấy, Hà Nội</p>
             <p className="flex items-center gap-2"><Phone className="h-4 w-4" /> Hotline: 1900 6789</p>
             <p className="flex items-center gap-2"><Mail className="h-4 w-4" /> support@laptopworld.vn</p>
           </div>
           <div className="flex gap-2">
-            <a href="#" className="rounded-full border p-2 hover:border-primary hover:text-primary transition" aria-label="Facebook">
+            <a
+              href="https://www.facebook.com/laptopworldhoangminh"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border p-2 hover:border-primary hover:text-primary transition"
+              aria-label="Facebook LaptopWorld Hoàng Minh"
+            >
               <FacebookIcon className="h-4 w-4" />
             </a>
-            <a href="#" className="rounded-full border p-2 hover:border-primary hover:text-primary transition" aria-label="Youtube">
+            <a
+              href="https://www.youtube.com/@laptopworldHM"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border p-2 hover:border-primary hover:text-primary transition"
+              aria-label="Youtube LaptopWorld HM"
+            >
               <YoutubeIcon className="h-4 w-4" />
             </a>
-            <a href="#" className="rounded-full border p-2 hover:border-primary hover:text-primary transition" aria-label="Instagram">
+            <a
+              href="https://www.instagram.com/laptopworldvn/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border p-2 hover:border-primary hover:text-primary transition"
+              aria-label="Instagram LaptopWorld"
+            >
               <InstagramIcon className="h-4 w-4" />
             </a>
           </div>

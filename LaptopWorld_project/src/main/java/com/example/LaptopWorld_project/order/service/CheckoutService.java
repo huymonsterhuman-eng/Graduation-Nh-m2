@@ -140,6 +140,12 @@ public class CheckoutService {
         order.setStatus(OrderStatus.pending);
         order.setTotal(subtotal.subtract(discount).add(req.shippingFee()));
 
+        // VNPay: giới hạn 15 phút thanh toán. PaymentTimeoutService quét cột này auto-cancel.
+        // COD: không set → không bao giờ hết hạn (admin duyệt tay).
+        if (req.paymentMethod() == PaymentMethod.vnpay) {
+            order.setPaymentExpiresAt(OffsetDateTime.now().plusMinutes(15));
+        }
+
         // 6. Save order với code — retry nếu collision
         Order saved = saveWithUniqueCode(order);
 

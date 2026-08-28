@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Save, Sparkles, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -21,6 +21,7 @@ import {
 } from '@/hooks/api/useAdminProducts'
 import { useAdminCategories, useAdminBrands } from '@/hooks/api/useAdminCatalog'
 import { cn } from '@/lib/utils'
+import { formatNumberInput, parseNumberInput } from '@/lib/format'
 
 type FormState = Omit<ProductInput, 'specs'> & {
   specs: Record<string, unknown>
@@ -85,14 +86,56 @@ export function AdminProductFormPage() {
   )
   const specTemplate = currentCategory?.specTemplate ?? []
 
+  // Nhớ giá trị hợp lệ gần nhất — khi user gõ vượt Giá bán rồi blur, revert về đây.
+  const lastValidSalePrice = useRef<number | null>(null)
+  const lastValidCostPrice = useRef<number | null>(null)
+  useEffect(() => {
+    lastValidSalePrice.current = form.salePrice ?? null
+    lastValidCostPrice.current = form.costPrice ?? null
+  }, [detail?.id])
+
+  const salePriceInvalid = form.salePrice != null && form.salePrice > form.price
+  const costPriceInvalid = form.costPrice != null && form.costPrice > form.price
+
+  const handlePriceChange = (raw: string) => {
+    const n = parseNumberInput(raw) ?? 0
+    setForm({ ...form, price: n })
+  }
+
+  const handleSalePriceChange = (raw: string) => {
+    const n = parseNumberInput(raw)
+    setForm({ ...form, salePrice: n })
+    if (n == null || n <= form.price) lastValidSalePrice.current = n
+  }
+
+  const handleSalePriceBlur = () => {
+    if (form.salePrice != null && form.salePrice > form.price) {
+      toast.error('Giá khuyến mãi lớn hơn Giá bán — đã khôi phục giá trị trước.')
+      setForm({ ...form, salePrice: lastValidSalePrice.current })
+    }
+  }
+
+  const handleCostPriceChange = (raw: string) => {
+    const n = parseNumberInput(raw)
+    setForm({ ...form, costPrice: n })
+    if (n == null || n <= form.price) lastValidCostPrice.current = n
+  }
+
+  const handleCostPriceBlur = () => {
+    if (form.costPrice != null && form.costPrice > form.price) {
+      toast.error('Giá vốn lớn hơn Giá bán — đã khôi phục giá trị trước.')
+      setForm({ ...form, costPrice: lastValidCostPrice.current })
+    }
+  }
+
   const handleSubmit = async (afterSave: 'stay' | 'back') => {
     if (!form.name.trim()) { toast.error('Vui lòng nhập tên sản phẩm'); return }
     if (form.price == null || Number(form.price) < 0) { toast.error('Giá không hợp lệ'); return }
     if (form.salePrice != null && Number(form.salePrice) > Number(form.price)) {
-      toast.error('Giá khuyến mãi không được lớn hơn giá gốc'); return
+      toast.error('Giá khuyến mãi không được lớn hơn Giá bán'); return
     }
     if (form.costPrice != null && Number(form.costPrice) > Number(form.price)) {
-      toast.error('Giá vốn không được lớn hơn giá bán'); return
+      toast.error('Giá vốn không được lớn hơn Giá bán'); return
     }
 
     const body: ProductInput = {
@@ -238,28 +281,43 @@ export function AdminProductFormPage() {
           <Card className="space-y-3 p-4">
             <h3 className="text-sm font-semibold">Giá & tồn kho</h3>
             <div className="space-y-2">
-              <Label htmlFor="price">Giá gốc (VND) *</Label>
-              <Input id="price" type="number" min={0}
-                value={form.price} required
-                onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} />
+              <Label htmlFor="price">Giá bán (VND) *</Label>
+              <Input id="price" type="text" inputMode="numeric"
+                value={formatNumberInput(form.price)} required
+                onChange={(e) => handlePriceChange(e.target.value)}
+                placeholder="VD: 1.000.000" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="sale">Giá khuyến mãi (VND)</Label>
-              <Input id="sale" type="number" min={0}
-                value={form.salePrice ?? ''}
-                onChange={(e) => setForm({ ...form, salePrice: e.target.value ? Number(e.target.value) : null })}
-                placeholder="Để trống nếu không giảm" />
+              <Input id="sale" type="text" inputMode="numeric"
+                value={formatNumberInput(form.salePrice ?? null)}
+                onChange={(e) => handleSalePriceChange(e.target.value)}
+                onBlur={handleSalePriceBlur}
+                placeholder="Để trống nếu không giảm"
+                className={cn(salePriceInvalid && 'border-destructive focus-visible:ring-destructive')} />
+              {salePriceInvalid && (
+                <p className="text-xs text-destructive">
+                  Vượt Giá bán — rời ô sẽ tự khôi phục giá trị hợp lệ trước đó.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="cost">Giá vốn cơ sở (VND)</Label>
-              <Input id="cost" type="number" min={0}
-                value={form.costPrice ?? ''}
-                onChange={(e) => setForm({ ...form, costPrice: e.target.value ? Number(e.target.value) : null })}
+              <Input id="cost" type="text" inputMode="numeric"
+                value={formatNumberInput(form.costPrice ?? null)}
+                onChange={(e) => handleCostPriceChange(e.target.value)}
+                onBlur={handleCostPriceBlur}
                 placeholder="Để trống nếu chưa xác định"
-                className={cn(form.costPrice != null && form.costPrice > form.price && 'border-destructive')} />
-              <p className="text-xs text-muted-foreground">
-                Ràng buộc: <b>Giá vốn ≤ Giá gốc</b>. Mỗi lô nhập có giá riêng, phải ≤ giá bán.
-              </p>
+                className={cn(costPriceInvalid && 'border-destructive focus-visible:ring-destructive')} />
+              {costPriceInvalid ? (
+                <p className="text-xs text-destructive">
+                  Vượt Giá bán — rời ô sẽ tự khôi phục giá trị hợp lệ trước đó.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Ràng buộc: <b>Giá vốn ≤ Giá bán</b>. Mỗi lô nhập có giá riêng, phải ≤ giá bán.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="stock" className="flex items-center justify-between">

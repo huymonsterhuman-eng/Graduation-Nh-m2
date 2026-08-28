@@ -2,18 +2,17 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth'
 import { useCart } from '@/hooks/api/useCart'
 import { Button } from '@/components/ui/button'
-import { ShoppingCart, Search, User, LogOut, Moon, Sun } from 'lucide-react'
-import { useState } from 'react'
+import { ShoppingCart, User, LogOut, Moon, Sun } from 'lucide-react'
 import { toast } from 'sonner'
 import { TopBar } from './TopBar'
 import { MegaMenu } from './MegaMenu'
+import { SearchSuggest } from './SearchSuggest'
 import { useThemeStore } from '@/stores/theme'
 
 export function Header() {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const navigate = useNavigate()
-  const [keyword, setKeyword] = useState('')
   const { data: cart } = useCart()
   const cartCount = cart?.itemCount ?? 0
   const theme = useThemeStore((s) => s.theme)
@@ -23,13 +22,6 @@ export function Header() {
     await logout()
     toast.success('Đã đăng xuất')
     navigate('/')
-  }
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (keyword.trim()) {
-      navigate(`/tim-kiem?q=${encodeURIComponent(keyword.trim())}`)
-    }
   }
 
   return (
@@ -45,17 +37,9 @@ export function Header() {
           <MegaMenu />
         </div>
 
-        <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-xl">
-          <div className="relative w-full">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              placeholder="Tìm laptop, điện thoại, phụ kiện..."
-              className="h-10 w-full rounded-md border bg-background pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-        </form>
+        <div className="hidden md:flex flex-1 max-w-xl">
+          <SearchSuggest />
+        </div>
 
         <nav className="flex items-center gap-2 ml-auto">
           <Button variant="ghost" size="icon" onClick={toggleTheme}

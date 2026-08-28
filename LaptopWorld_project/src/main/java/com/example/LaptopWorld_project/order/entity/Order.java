@@ -88,6 +88,14 @@ public class Order extends BaseEntity {
     @Column(name = "paid_at")
     private OffsetDateTime paidAt;
 
+    /**
+     * Hạn thanh toán VNPay (createdAt + 15 phút). PaymentTimeoutService quét cột này
+     * mỗi 60s — quá hạn mà chưa paid → auto cancel + release reserved + refund voucher.
+     * COD và đơn đã paid: null (không bao giờ hết hạn).
+     */
+    @Column(name = "payment_expires_at")
+    private OffsetDateTime paymentExpiresAt;
+
     @Column(name = "delivered_at")
     private OffsetDateTime deliveredAt;
 

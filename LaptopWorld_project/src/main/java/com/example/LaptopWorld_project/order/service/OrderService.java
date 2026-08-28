@@ -9,8 +9,11 @@ import com.example.LaptopWorld_project.order.dto.OrderListItemDto;
 import com.example.LaptopWorld_project.order.dto.UpdateOrderStatusRequest;
 import com.example.LaptopWorld_project.order.entity.Order;
 import com.example.LaptopWorld_project.order.entity.OrderStatus;
+import com.example.LaptopWorld_project.order.entity.PaymentMethod;
+import com.example.LaptopWorld_project.order.entity.PaymentStatus;
 import com.example.LaptopWorld_project.order.mapper.OrderMapper;
 import com.example.LaptopWorld_project.order.repository.OrderRepository;
+import com.example.LaptopWorld_project.payment.vnpay.VnpayService;
 import com.example.LaptopWorld_project.user.entity.User;
 import com.example.LaptopWorld_project.user.repository.UserRepository;
 import com.example.LaptopWorld_project.voucher.entity.UserVoucher;
@@ -61,6 +64,7 @@ public class OrderService {
     private final UserVoucherRepository userVoucherRepository;
     private final InventoryService inventoryService;
     private final UserRepository userRepository;
+    private final VnpayService vnpayService;
 
     // ==================== USER ====================
     @Transactional(readOnly = true)
@@ -98,6 +102,59 @@ public class OrderService {
         // User cancel chỉ khi pending → chưa có phiếu xuất, không cần author
         doTransition(order, OrderStatus.cancelled, null);
         return orderMapper.toDetail(orderRepository.save(order));
+    }
+
+    /**
+     * Sinh URL VNPay mới cho đơn cũ user chưa thanh toán — nút "Thanh toán lại".
+     * Điều kiện: đơn của user + status=pending + method=vnpay + unpaid + chưa hết hạn.
+     * Đồng thời extend paymentExpiresAt thêm 15 phút để user có thời gian ngồi trên cổng.
+     */
+    @Transactional
+    public String repayVnpay(Long userId, String code, String clientIp) {
+        Order order = orderRepository.findByCode(code)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn: " + code));
+        if (!order.getUser().getId().equals(userId)) {
+            throw new BusinessException("FORBIDDEN", "Đơn hàng không thuộc về bạn");
+        }
+        if (order.getPaymentMethod() != PaymentMethod.vnpay) {
+            throw new BusinessException("NOT_VNPAY", "Đơn này không thanh toán qua VNPay");
+        }
+        if (order.getStatus() != OrderStatus.pending || order.getPaymentStatus() == PaymentStatus.paid) {
+            throw new BusinessException("CANNOT_REPAY",
+                    "Đơn không ở trạng thái chờ thanh toán");
+        }
+        if (order.getPaymentExpiresAt() != null && order.getPaymentExpiresAt().isBefore(OffsetDateTime.now())) {
+            throw new BusinessException("EXPIRED", "Đơn đã hết hạn thanh toán — vui lòng đặt lại");
+        }
+        // Extend thêm 15 phút để user thoải mái ngồi trên cổng
+        order.setPaymentExpiresAt(OffsetDateTime.now().plusMinutes(15));
+        orderRepository.save(order);
+        return vnpayService.createPaymentUrl(order, clientIp);
+    }
+
+    /**
+     * Hệ thống tự huỷ đơn VNPay quá hạn — không kiểm owner (chạy từ PaymentTimeoutService).
+     * Reuse doTransition(pending → cancelled) để release reserved + refund voucher.
+     * Kiểm optimistic status/paymentStatus lần cuối trong transaction để tránh race
+     * với VNPay IPN callback ngay khoảnh khắc job chạy.
+     */
+    @Transactional
+    public void systemCancelExpired(Long orderId, String reason) {
+        Order order = orderRepository.findWithDetailsById(orderId)
+                .orElse(null);
+        if (order == null) return;
+        // Guard race: giữa lúc job load & lock, IPN có thể vừa update paid
+        if (order.getStatus() != OrderStatus.pending
+                || order.getPaymentStatus() == PaymentStatus.paid) {
+            log.info("Skip cancel expired: order {} đã thay đổi trạng thái (status={}, paid={})",
+                    order.getCode(), order.getStatus(), order.getPaymentStatus());
+            return;
+        }
+        doTransition(order, OrderStatus.cancelled, null);
+        String note = "[Auto-cancel] " + reason;
+        order.setAdminNote(order.getAdminNote() == null ? note : order.getAdminNote() + "\n" + note);
+        orderRepository.save(order);
+        log.info("Auto-cancelled expired VNPay order {}: {}", order.getCode(), reason);
     }
 
     // ==================== ADMIN ====================

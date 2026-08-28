@@ -16,10 +16,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Tag(name = "Product", description = "Sản phẩm — search/filter public + admin CRUD")
 @RestController
@@ -29,7 +33,10 @@ public class ProductController {
     private final ProductService productService;
 
     // ---------- Public ----------
-    @Operation(summary = "Tìm kiếm / lọc / phân trang sản phẩm")
+    @Operation(summary = "Tìm kiếm / lọc / phân trang sản phẩm",
+               description = "Filter theo thông số kỹ thuật: truyền param `spec.<key>=value` (lặp lại để chọn nhiều value). "
+                       + "VD `?categoryId=1&spec.ram=8GB&spec.ram=12GB&spec.chip=Snapdragon%208%20Gen%202`. "
+                       + "Cùng key = OR, khác key = AND.")
     @GetMapping("/api/catalog/products")
     public ApiResponse<PagedResponse<ProductListItemDto>> search(
             @Parameter(description = "Từ khóa tìm theo tên") @RequestParam(required = false) String keyword,
@@ -37,10 +44,39 @@ public class ProductController {
             @RequestParam(required = false) Long brandId,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam MultiValueMap<String, String> allParams,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
+        Map<String, List<String>> specs = extractSpecParams(allParams);
         return ApiResponse.ok(productService.search(keyword, categoryId, brandId,
-                                                    minPrice, maxPrice, pageable));
+                                                    minPrice, maxPrice, specs, pageable));
+    }
+
+    /** Lấy các param dạng `spec.<key>=value` từ query string thành Map. */
+    private Map<String, List<String>> extractSpecParams(MultiValueMap<String, String> allParams) {
+        Map<String, List<String>> specs = new LinkedHashMap<>();
+        for (var e : allParams.entrySet()) {
+            String name = e.getKey();
+            if (name == null || !name.startsWith("spec.")) continue;
+            String key = name.substring("spec.".length());
+            if (key.isBlank()) continue;
+            List<String> values = new ArrayList<>();
+            for (String v : e.getValue()) {
+                if (v != null && !v.isBlank()) values.add(v);
+            }
+            if (!values.isEmpty()) specs.put(key, values);
+        }
+        return specs;
+    }
+
+    @Operation(summary = "Danh sách value + count cho từng key thông số kỹ thuật theo category "
+            + "(bao gồm sub-cat con). Dùng cho filter panel trang danh mục.")
+    @GetMapping("/api/catalog/categories/{id}/spec-values")
+    public ApiResponse<List<ProductService.SpecFilterGroup>> specValues(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "15") int topPerKey
+    ) {
+        return ApiResponse.ok(productService.findSpecValuesByCategory(id, topPerKey));
     }
 
     @Operation(summary = "Chi tiết sản phẩm theo slug (auto tăng lượt xem)")

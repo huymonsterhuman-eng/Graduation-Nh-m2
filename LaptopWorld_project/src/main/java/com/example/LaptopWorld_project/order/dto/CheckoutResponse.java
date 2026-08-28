@@ -11,4 +11,6 @@ package com.example.LaptopWorld_project.order.dto;
 public record CheckoutResponse(
         OrderDetailDto order,
         String paymentUrl
-) {}
+) {
+    // paymentExpiresAt đã có sẵn trong OrderDetailDto → không cần expose thêm ở đây.
+}

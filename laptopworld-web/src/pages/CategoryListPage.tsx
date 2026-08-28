@@ -7,20 +7,24 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { useCategoryBySlug, useBrandsByCategory } from '@/hooks/api/useCategories'
+import { Badge } from '@/components/ui/badge'
+import { useCategoryBySlug, useBrandsByCategory, useSpecValues } from '@/hooks/api/useCategories'
 import { useProducts } from '@/hooks/api/useProducts'
 import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatPrice } from '@/lib/format'
 
 const PAGE_SIZE = 12
-const SPEC_LABELS: Record<string, string> = {
-  chip: 'Chip / CPU',
-  ram: 'RAM',
-  ssd: 'Ổ cứng SSD',
-  screen: 'Màn hình',
-  camera: 'Camera',
-  battery: 'Pin',
-  os: 'Hệ điều hành',
+
+/** Chỉ nhận chữ số 0-9 (bỏ dấu chấm, dấu phẩy, chữ). */
+function sanitizeDigits(v: string): string {
+  return v.replace(/\D/g, '')
+}
+
+/** Format 12345678 → 12.345.678 (chỉ để hiển thị dưới ô input). */
+function formatThousands(v: string): string {
+  if (!v) return ''
+  return v.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
 }
 
 export function CategoryListPage() {
@@ -28,8 +32,10 @@ export function CategoryListPage() {
   const { data: category } = useCategoryBySlug(slug)
   // Chỉ hiện brand có SP thực sự trong cat này (bao gồm sub-cat)
   const { data: brands } = useBrandsByCategory(category?.id)
+  // Aggregate distinct value cho từng key thông số kỹ thuật của cat
+  const { data: specGroups } = useSpecValues(category?.id)
 
-  // URL query params là source of truth cho brandId/minPrice/maxPrice
+  // URL query params là source of truth cho brandId/minPrice/maxPrice/spec.*
   // → link từ MegaMenu (?brandId=X) hoạt động; back/forward giữ nguyên filter.
   const [searchParams, setSearchParams] = useSearchParams()
   const brandIdStr = searchParams.get('brandId')
@@ -37,28 +43,48 @@ export function CategoryListPage() {
   const minPrice = searchParams.get('minPrice') ?? ''
   const maxPrice = searchParams.get('maxPrice') ?? ''
 
-  // Draft cho ô nhập giá — chỉ commit vào URL khi bấm "Áp dụng"
+  // Draft + error cho ô nhập giá — chỉ commit khi bấm "Áp dụng"
   const [minDraft, setMinDraft] = useState(minPrice)
   const [maxDraft, setMaxDraft] = useState(maxPrice)
-  useEffect(() => { setMinDraft(minPrice); setMaxDraft(maxPrice) }, [minPrice, maxPrice])
+  const [priceError, setPriceError] = useState<string | undefined>()
+  useEffect(() => {
+    setMinDraft(minPrice); setMaxDraft(maxPrice); setPriceError(undefined)
+  }, [minPrice, maxPrice])
 
   const [page, setPage] = useState(0)
   const [sort, setSort] = useState('createdAt,desc')
 
+  // Parse specs từ URL — mỗi key có thể có nhiều value
+  const specs = useMemo(() => {
+    const result: Record<string, string[]> = {}
+    for (const [k, v] of searchParams.entries()) {
+      if (!k.startsWith('spec.') || !v) continue
+      const key = k.slice('spec.'.length)
+      if (!key) continue
+      ;(result[key] ??= []).push(v)
+    }
+    return result
+  }, [searchParams])
+
+  // Signature ổn định cho dependency (Object không so được reference)
+  const specsSig = useMemo(
+    () => Object.entries(specs).map(([k, vs]) => `${k}:${[...vs].sort().join(',')}`).sort().join('|'),
+    [specs]
+  )
+
   // Reset page khi filter đổi
-  useEffect(() => { setPage(0) }, [brandId, minPrice, maxPrice])
+  useEffect(() => { setPage(0) }, [brandId, minPrice, maxPrice, specsSig])
 
   const { data, isLoading } = useProducts({
     categoryId: category?.id,
     brandId,
     minPrice: minPrice ? Number(minPrice) : undefined,
     maxPrice: maxPrice ? Number(maxPrice) : undefined,
+    specs: Object.keys(specs).length > 0 ? specs : undefined,
     sort,
     page,
     size: PAGE_SIZE,
   })
-
-  const specKeys = useMemo(() => Object.keys(SPEC_LABELS), [])
 
   const updateParam = (key: string, value: string | undefined) => {
     const next = new URLSearchParams(searchParams)
@@ -66,16 +92,46 @@ export function CategoryListPage() {
     setSearchParams(next, { replace: true })
   }
 
-  const applyPrice = () => {
+  const toggleSpec = (key: string, value: string) => {
     const next = new URLSearchParams(searchParams)
-    if (minDraft) next.set('minPrice', minDraft); else next.delete('minPrice')
-    if (maxDraft) next.set('maxPrice', maxDraft); else next.delete('maxPrice')
+    const current = next.getAll(`spec.${key}`)
+    if (current.includes(value)) {
+      next.delete(`spec.${key}`)
+      current.filter((v) => v !== value).forEach((v) => next.append(`spec.${key}`, v))
+    } else {
+      next.append(`spec.${key}`, value)
+    }
+    setSearchParams(next, { replace: true })
+  }
+
+  const clearSpecKey = (key: string) => {
+    const next = new URLSearchParams(searchParams)
+    next.delete(`spec.${key}`)
+    setSearchParams(next, { replace: true })
+  }
+
+  const applyPrice = () => {
+    // Validate: chỉ số, không âm, min <= max, tối đa 12 chữ số (~999 tỷ)
+    const minStr = sanitizeDigits(minDraft)
+    const maxStr = sanitizeDigits(maxDraft)
+    if (minStr.length > 12 || maxStr.length > 12) {
+      setPriceError('Số quá lớn — tối đa 12 chữ số'); return
+    }
+    if (minStr && maxStr && Number(minStr) > Number(maxStr)) {
+      setPriceError('Giá tối thiểu phải nhỏ hơn hoặc bằng giá tối đa'); return
+    }
+    setPriceError(undefined)
+    const next = new URLSearchParams(searchParams)
+    if (minStr) next.set('minPrice', minStr); else next.delete('minPrice')
+    if (maxStr) next.set('maxPrice', maxStr); else next.delete('maxPrice')
     setSearchParams(next, { replace: true })
   }
 
   const resetFilter = () => {
     setSearchParams({}, { replace: true })
   }
+
+  const activeSpecCount = Object.values(specs).reduce((sum, arr) => sum + arr.length, 0)
 
   return (
     <div className="container py-6">
@@ -122,28 +178,64 @@ export function CategoryListPage() {
             <CardContent className="space-y-3">
               <div className="space-y-1">
                 <Label className="text-xs">Từ (VND)</Label>
-                <Input value={minDraft} onChange={(e) => setMinDraft(e.target.value)} inputMode="numeric" />
+                <Input
+                  value={formatThousands(minDraft)}
+                  onChange={(e) => { setMinDraft(sanitizeDigits(e.target.value)); setPriceError(undefined) }}
+                  inputMode="numeric"
+                  placeholder="0"
+                  aria-invalid={!!priceError}
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Đến (VND)</Label>
-                <Input value={maxDraft} onChange={(e) => setMaxDraft(e.target.value)} inputMode="numeric" />
+                <Input
+                  value={formatThousands(maxDraft)}
+                  onChange={(e) => { setMaxDraft(sanitizeDigits(e.target.value)); setPriceError(undefined) }}
+                  inputMode="numeric"
+                  placeholder="Không giới hạn"
+                  aria-invalid={!!priceError}
+                />
               </div>
+              {priceError && (
+                <p className="text-xs text-destructive">{priceError}</p>
+              )}
+              {!priceError && (minDraft || maxDraft) && (
+                <p className="text-[11px] text-muted-foreground">
+                  {minDraft && `Từ ${formatPrice(Number(minDraft))}`}
+                  {minDraft && maxDraft && ' — '}
+                  {maxDraft && `Đến ${formatPrice(Number(maxDraft))}`}
+                </p>
+              )}
               <Button variant="outline" className="w-full" onClick={applyPrice}>Áp dụng</Button>
             </CardContent>
           </Card>
 
-          {/* Filter theo specs — accordion (chỉ label, chưa filter thật vì list API không trả specs) */}
+          {/* Filter theo thông số kỹ thuật — real, dùng specs JSONB backend */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Thông số kỹ thuật</CardTitle>
+              <CardTitle className="text-base flex items-center justify-between">
+                <span>Thông số kỹ thuật</span>
+                {activeSpecCount > 0 && (
+                  <Badge variant="secondary" className="text-xs">{activeSpecCount} đã chọn</Badge>
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-1">
-              {specKeys.map((k) => (
-                <SpecAccordion key={k} label={SPEC_LABELS[k]} />
-              ))}
-              <p className="text-[10px] text-muted-foreground pt-2 italic">
-                Lọc chi tiết theo thông số sẽ có ở phiên bản sau
-              </p>
+              {!specGroups || specGroups.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic py-2">
+                  Chưa có thông số nào cho danh mục này
+                </p>
+              ) : (
+                specGroups.map((g) => (
+                  <SpecAccordion
+                    key={g.key}
+                    group={g}
+                    selectedValues={specs[g.key] ?? []}
+                    onToggle={(v) => toggleSpec(g.key, v)}
+                    onClear={() => clearSpecKey(g.key)}
+                  />
+                ))
+              )}
             </CardContent>
           </Card>
 
@@ -179,20 +271,72 @@ export function CategoryListPage() {
   )
 }
 
-function SpecAccordion({ label }: { label: string }) {
-  const [open, setOpen] = useState(false)
+/**
+ * Accordion 1 nhóm spec — checkbox multi-select với count và nút "Xoá" khi có value chọn.
+ * Auto mở khi đã có value chọn.
+ */
+function SpecAccordion({
+  group,
+  selectedValues,
+  onToggle,
+  onClear,
+}: {
+  group: { key: string; label: string; values: { value: string; count: number }[] }
+  selectedValues: string[]
+  onToggle: (value: string) => void
+  onClear: () => void
+}) {
+  const hasSelected = selectedValues.length > 0
+  const [open, setOpen] = useState(hasSelected)
+  useEffect(() => { if (hasSelected) setOpen(true) }, [hasSelected])
+
   return (
     <div className="border-b last:border-0">
       <button
         onClick={() => setOpen(!open)}
         className="flex w-full items-center justify-between py-2 text-sm hover:text-primary"
       >
-        <span>{label}</span>
+        <span className="flex items-center gap-2">
+          {group.label}
+          {hasSelected && (
+            <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
+              {selectedValues.length}
+            </Badge>
+          )}
+        </span>
         <ChevronDown className={cn('h-4 w-4 transition', open && 'rotate-180')} />
       </button>
       {open && (
-        <div className="pb-2 text-xs text-muted-foreground">
-          Chưa có tùy chọn (backend filter chưa hỗ trợ)
+        <div className="pb-2 space-y-1.5 max-h-52 overflow-auto pr-1">
+          {group.values.map((v) => {
+            const checked = selectedValues.includes(v.value)
+            return (
+              <label
+                key={v.value}
+                className={cn(
+                  'flex items-center gap-2 text-xs cursor-pointer hover:text-primary',
+                  checked && 'text-primary font-medium'
+                )}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => onToggle(v.value)}
+                  className="h-3.5 w-3.5 accent-primary"
+                />
+                <span className="flex-1 truncate" title={v.value}>{v.value}</span>
+                <span className="text-muted-foreground">({v.count})</span>
+              </label>
+            )
+          })}
+          {hasSelected && (
+            <button
+              onClick={onClear}
+              className="text-[11px] text-muted-foreground hover:text-destructive underline pt-1"
+            >
+              Bỏ chọn tất cả
+            </button>
+          )}
         </div>
       )}
     </div>

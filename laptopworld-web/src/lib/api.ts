@@ -40,7 +40,15 @@ interface RefreshResponse {
 
 api.interceptors.response.use(
   (res) => res,
-  async (error: AxiosError) => {
+  async (error: AxiosError<ApiResponse<unknown>>) => {
+    // Unwrap message tiếng Việt từ BE (ApiResponse.error) và gán vào error.message
+    // → mọi nơi dùng (e as Error).message tự nhận VN thay vì "Request failed with status code 400".
+    // Nơi đọc err.response?.data?.message trực tiếp không bị ảnh hưởng (vẫn còn ở response).
+    const beMessage = error.response?.data?.message
+    if (beMessage && typeof beMessage === 'string') {
+      error.message = beMessage
+    }
+
     const original = error.config as (AxiosRequestConfig & { _retry?: boolean }) | undefined
     if (!original || error.response?.status !== 401 || original._retry) {
       return Promise.reject(error)

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Phone, Package, Newspaper, MapPin } from 'lucide-react'
+import { Phone, Package, Newspaper } from 'lucide-react'
 
 /** Top bar mảnh trên header — hotline + tiện ích. */
 export function TopBar() {
@@ -10,9 +10,6 @@ export function TopBar() {
           <a href="tel:19006789" className="flex items-center gap-1 hover:text-primary">
             <Phone className="h-3 w-3" /> Hotline: 1900 6789
           </a>
-          <span className="flex items-center gap-1">
-            <MapPin className="h-3 w-3" /> Hồ Chí Minh
-          </span>
         </div>
         <div className="flex items-center gap-4 text-muted-foreground">
           <Link to="/tai-khoan/don-hang" className="flex items-center gap-1 hover:text-primary">

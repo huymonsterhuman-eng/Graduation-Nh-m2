@@ -1,4 +1,6 @@
+import { useRef } from 'react'
 import { Link } from 'react-router-dom'
+import Autoplay from 'embla-carousel-autoplay'
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel'
 import { SmartImage } from '@/components/common/SmartImage'
 import { FlashSaleBlock } from '@/components/common/FlashSaleBlock'
@@ -20,6 +22,8 @@ import { Eye, ArrowRight } from 'lucide-react'
 
 export function HomePage() {
   const { data: banners } = useBanners()
+  // Autoplay 4s, dừng khi hover, không reset khi tương tác thủ công.
+  const autoplay = useRef(Autoplay({ delay: 4000, stopOnInteraction: false, stopOnMouseEnter: true }))
   const { data: tree } = useCategories()
   const { data: posts } = usePosts({ size: 3 })
   const { data: phoneSidebar } = useBannerBySlot('sidebar_phone')
@@ -39,7 +43,7 @@ export function HomePage() {
       {/* Banner slider */}
       <section>
         {banners && banners.length > 0 ? (
-          <Carousel opts={{ loop: true, align: 'start' }} className="w-full">
+          <Carousel opts={{ loop: true, align: 'start' }} plugins={[autoplay.current]} className="w-full">
             <CarouselContent>
               {banners.map((b) => (
                 <CarouselItem key={b.id}>

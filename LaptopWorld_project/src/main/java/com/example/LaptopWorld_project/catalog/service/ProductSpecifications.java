@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Build dynamic filter cho Product theo các tiêu chí tùy chọn.
@@ -33,6 +34,22 @@ public final class ProductSpecifications {
                                                     BigDecimal minPrice,
                                                     BigDecimal maxPrice,
                                                     Boolean activeOnly) {
+        return withFilter(keyword, categoryIds, brandId, minPrice, maxPrice, activeOnly, null);
+    }
+
+    /**
+     * Overload có thêm `specs` filter — mỗi entry {key -> [values]}:
+     * cùng key = OR (SP thuộc bất kỳ value nào của key đó);
+     * khác key = AND (phải thỏa tất cả nhóm).
+     * Dùng Postgres function `jsonb_extract_path_text(specs, 'key')`.
+     */
+    public static Specification<Product> withFilter(String keyword,
+                                                    Collection<Long> categoryIds,
+                                                    Long brandId,
+                                                    BigDecimal minPrice,
+                                                    BigDecimal maxPrice,
+                                                    Boolean activeOnly,
+                                                    Map<String, List<String>> specs) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -63,6 +80,20 @@ public final class ProductSpecifications {
                 if (minPrice != null) predicates.add(cb.greaterThanOrEqualTo(effectivePrice, minPrice));
                 if (maxPrice != null) predicates.add(cb.lessThanOrEqualTo(effectivePrice, maxPrice));
             }
+
+            // Specs filter: key = specs->>'chip' IN (:values). Nhiều key = AND.
+            if (specs != null && !specs.isEmpty()) {
+                for (Map.Entry<String, List<String>> e : specs.entrySet()) {
+                    String key = e.getKey();
+                    List<String> values = e.getValue();
+                    if (key == null || key.isBlank() || values == null || values.isEmpty()) continue;
+                    Expression<String> extracted = cb.function(
+                            "jsonb_extract_path_text", String.class,
+                            root.get("specs"), cb.literal(key));
+                    predicates.add(extracted.in(values));
+                }
+            }
+
             return cb.and(predicates.toArray(new Predicate[0]));
         };
     }

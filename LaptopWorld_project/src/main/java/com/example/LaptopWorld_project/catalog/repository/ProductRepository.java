@@ -88,4 +88,24 @@ public interface ProductRepository extends JpaRepository<Product, Long>,
             GROUP BY entry.k
             """, nativeQuery = true)
     java.util.List<Object[]> countSpecUsageByCategoryId(@Param("categoryId") Long categoryId);
+
+    /**
+     * Aggregate: distinct value + count cho từng key trong specs JSONB.
+     * Dùng để build filter thông số kỹ thuật ở trang danh mục user site.
+     * Chỉ đếm SP active + chưa soft-delete + trong các category chỉ định
+     * (đã bao gồm sub-cat con — caller resolve trước).
+     * Sort trong Java để giữ SQL đơn giản.
+     */
+    @Query(value = """
+            SELECT entry.k AS spec_key, entry.v AS spec_value, COUNT(*) AS cnt
+            FROM products p, LATERAL jsonb_each_text(p.specs) AS entry(k, v)
+            WHERE p.category_id IN (:categoryIds)
+              AND p.deleted_at IS NULL
+              AND p.is_active = true
+              AND p.specs IS NOT NULL
+              AND entry.v IS NOT NULL AND entry.v <> '' AND entry.v <> 'null'
+            GROUP BY entry.k, entry.v
+            """, nativeQuery = true)
+    java.util.List<Object[]> aggregateSpecValuesByCategoryIds(
+            @Param("categoryIds") java.util.List<Long> categoryIds);
 }

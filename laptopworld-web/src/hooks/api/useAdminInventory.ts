@@ -278,3 +278,28 @@ export function useProductSearchLite(keyword: string, enabled: boolean) {
     },
   })
 }
+
+// ================== Reserved-stock audit ==================
+
+export interface ReservedStockMismatch {
+  productId: number
+  productName: string
+  actualReserved: number
+  expectedReserved: number
+  deltaAbsolute: number
+}
+
+/**
+ * Chạy tay audit reserved_stock — mutation vì server-side có side effect log.
+ * Trả list SP đang lệch giữa `products.reserved_stock` và số reserved thực đếm từ đơn active.
+ */
+export function useRunReservedStockAudit() {
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post<ApiResponse<ReservedStockMismatch[]>>(
+        '/admin/inventory/reserved-stock-audit'
+      )
+      return { rows: data.data ?? [], message: data.message ?? '' }
+    },
+  })
+}

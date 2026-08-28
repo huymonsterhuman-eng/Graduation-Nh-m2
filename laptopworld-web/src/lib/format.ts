@@ -6,6 +6,25 @@ export function formatPrice(value: number | string | null | undefined): string {
   return new Intl.NumberFormat('vi-VN').format(n) + '₫'
 }
 
+/**
+ * Format số cho ô nhập tiền — 1000000 → "1.000.000" (không có ₫).
+ * Dùng với input type=text để user nhìn thấy dấu phân cách trong lúc gõ.
+ */
+export function formatNumberInput(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) return ''
+  return new Intl.NumberFormat('vi-VN').format(value)
+}
+
+/**
+ * Parse chuỗi user gõ → number. "1.000.000" → 1000000, "1,000,000" → 1000000.
+ * Bỏ mọi ký tự không phải digit. Chuỗi rỗng / không có digit → null.
+ */
+export function parseNumberInput(value: string): number | null {
+  const digits = value.replace(/[^\d]/g, '')
+  if (digits === '') return null
+  return Number(digits)
+}
+
 /** Ảnh product: nếu path bắt đầu bằng "/uploads" giữ nguyên (vite proxy), nếu null trả placeholder. */
 export function productImageSrc(path: string | null | undefined): string {
   if (!path) return '/placeholder-product.svg'

@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useOrderByCode, useCancelOrder } from '@/hooks/api/useOrders'
+import { useOrderByCode, useCancelOrder, useRepayVnpay } from '@/hooks/api/useOrders'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -11,7 +11,8 @@ import { ReviewDialog } from '@/components/ReviewDialog'
 import { formatPrice } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { Star } from 'lucide-react'
+import { Star, Clock, CreditCard } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import type { OrderStatus } from '@/types/api'
 import type { AxiosError } from 'axios'
 import type { ApiResponse } from '@/lib/api'
@@ -38,7 +39,37 @@ export function OrderDetailPage() {
   const { code } = useParams<{ code: string }>()
   const { data: order, isLoading } = useOrderByCode(code)
   const cancel = useCancelOrder()
+  const repay = useRepayVnpay()
+  const qc = useQueryClient()
   const [reviewTarget, setReviewTarget] = useState<{ productId: number; productName: string } | null>(null)
+  const [now, setNow] = useState(Date.now())
+
+  // Đơn VNPay unpaid pending có countdown → tick mỗi giây
+  const isVnpayWaitingPayment =
+    order?.paymentMethod === 'vnpay' &&
+    order?.paymentStatus === 'unpaid' &&
+    order?.status === 'pending' &&
+    !!order?.paymentExpiresAt
+  useEffect(() => {
+    if (!isVnpayWaitingPayment) return
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [isVnpayWaitingPayment])
+
+  const expiresMs = order?.paymentExpiresAt ? new Date(order.paymentExpiresAt).getTime() : 0
+  const remainMs = Math.max(0, expiresMs - now)
+  const remainMin = Math.floor(remainMs / 60_000)
+  const remainSec = Math.floor((remainMs % 60_000) / 1000)
+  const expired = isVnpayWaitingPayment && remainMs === 0
+
+  // Khi countdown vừa về 0 → refetch order để nhận status=cancelled (job cancel sau đó vài giây)
+  useEffect(() => {
+    if (!expired) return
+    const t = setTimeout(() => {
+      qc.invalidateQueries({ queryKey: ['order', code] })
+    }, 3000)
+    return () => clearTimeout(t)
+  }, [expired, code, qc])
 
   if (isLoading) {
     return <div className="space-y-4"><Skeleton className="h-8 w-64" /><Skeleton className="h-40" /></div>
@@ -64,6 +95,17 @@ export function OrderDetailPage() {
     }
   }
 
+  const handleRepay = async () => {
+    try {
+      const url = await repay.mutateAsync(order.code)
+      toast.success('Đang chuyển sang cổng VNPay...')
+      window.location.href = url
+    } catch (e) {
+      const err = e as AxiosError<ApiResponse<unknown>>
+      toast.error(err.response?.data?.message || 'Không sinh được liên kết thanh toán')
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
@@ -76,6 +118,36 @@ export function OrderDetailPage() {
           {STATUS_LABEL[order.status]}
         </Badge>
       </div>
+
+      {/* VNPay countdown / expired banner */}
+      {isVnpayWaitingPayment && !expired && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-4">
+          <div className="flex items-start gap-3">
+            <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="flex-1 space-y-1">
+              <p className="font-semibold text-amber-700 dark:text-amber-400">
+                Còn {String(remainMin).padStart(2, '0')}:{String(remainSec).padStart(2, '0')} để thanh toán
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Đơn sẽ tự huỷ nếu bạn không hoàn tất thanh toán VNPay trong thời gian trên. Reserved kho sẽ được trả lại cho khách khác.
+              </p>
+            </div>
+            <Button size="sm" onClick={handleRepay} disabled={repay.isPending}>
+              <CreditCard className="mr-1.5 h-4 w-4" />
+              {repay.isPending ? 'Đang xử lý...' : 'Thanh toán lại'}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {isVnpayWaitingPayment && expired && (
+        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4">
+          <p className="font-semibold text-destructive">Đã hết hạn thanh toán</p>
+          <p className="text-sm text-muted-foreground">
+            Hệ thống sẽ tự huỷ đơn này trong vài giây. Nếu bạn vẫn muốn mua, vui lòng đặt lại đơn mới.
+          </p>
+        </div>
+      )}
 
       {/* Timeline */}
       {order.status !== 'cancelled' && (

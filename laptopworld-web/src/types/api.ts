@@ -427,6 +427,8 @@ export interface OrderDetail {
   deliveredAt?: string
   cancelledAt?: string
   createdAt: string
+  /** Hạn thanh toán VNPay — countdown ở FE. Null nếu COD hoặc đã paid. */
+  paymentExpiresAt?: string
   items: OrderItem[]
 }
 

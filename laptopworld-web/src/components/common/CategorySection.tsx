@@ -72,12 +72,7 @@ export function CategorySection({
 
   return (
     <section>
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-bold">{title}</h2>
-        <Link to={`/danh-muc/${categorySlug}`} className="text-sm text-primary hover:underline flex items-center gap-1">
-          Xem tất cả <ArrowRight className="h-3 w-3" />
-        </Link>
-      </div>
+      <h2 className="text-xl font-bold mb-4">{title}</h2>
 
       <div className="grid gap-4 md:grid-cols-[240px_1fr]">
         {/* Left banner promo — aspect 1:3 CỨNG khớp với cropper 1:3 ở admin.
@@ -118,9 +113,9 @@ export function CategorySection({
             </div>
           )}
 
-          {/* Brand chips — ẩn khi đang lọc theo collection (2 mode loại trừ nhau) */}
-          {!activeCollectionSlug && brands && brands.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
+          {/* Brand chips + "Xem tất cả" cùng hàng — ẩn brand khi đang lọc theo collection */}
+          {!activeCollectionSlug && brands && brands.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-1.5">
               <ChipBtn active={!activeBrand} onClick={() => selectBrand(undefined)} variant="brand">Tất cả</ChipBtn>
               {brands.slice(0, 8).map((b) => (
                 <ChipBtn
@@ -132,6 +127,22 @@ export function CategorySection({
                   {b.name}
                 </ChipBtn>
               ))}
+              <Link
+                to={`/danh-muc/${categorySlug}`}
+                className="ml-auto text-sm text-primary hover:underline flex items-center gap-1 whitespace-nowrap"
+              >
+                Xem tất cả <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
+          ) : (
+            /* Trường hợp không có brand (hoặc đang lọc collection): giữ Link "Xem tất cả" ở góc phải */
+            <div className="flex justify-end">
+              <Link
+                to={`/danh-muc/${categorySlug}`}
+                className="text-sm text-primary hover:underline flex items-center gap-1 whitespace-nowrap"
+              >
+                Xem tất cả <ArrowRight className="h-3 w-3" />
+              </Link>
             </div>
           )}
 

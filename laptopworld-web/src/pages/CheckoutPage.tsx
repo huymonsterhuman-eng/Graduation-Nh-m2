@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useCart } from '@/hooks/api/useCart'
 import { useAddresses } from '@/hooks/api/useAddresses'
@@ -9,9 +9,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Breadcrumb } from '@/components/common/Breadcrumb'
 import { formatPrice } from '@/lib/format'
 import { toast } from 'sonner'
+import { AlertTriangle } from 'lucide-react'
 import type { AxiosError } from 'axios'
 import type { ApiResponse } from '@/lib/api'
 import type { PaymentMethod, VoucherCheckResult } from '@/types/api'
@@ -25,7 +30,9 @@ export function CheckoutPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
-  const { data: cart, isLoading: loadingCart } = useCart()
+  // Poll cart mỗi 8s — catch case khách khác vừa đặt SP giữa lúc mình điền form.
+  // stockAvailable đã trừ reserved ở BE (CartService.toItemDto), nên phản ánh thực tế.
+  const { data: cart, isLoading: loadingCart, refetch: refetchCart } = useCart({ refetchInterval: 8000 })
   const { data: addresses, isLoading: loadingAddr } = useAddresses()
   const checkout = useCheckout()
 
@@ -35,6 +42,14 @@ export function CheckoutPage() {
   const [note, setNote] = useState('')
   const [voucherCode, setVoucherCode] = useState(searchParams.get('voucher') || '')
   const [voucherResult, setVoucherResult] = useState<VoucherCheckResult | null>(null)
+  const [stockDialogMsg, setStockDialogMsg] = useState<string | null>(null)
+
+  // Detect SP có vấn đề: thiếu tồn hoặc đã ngừng bán.
+  const stockIssues = useMemo(() => {
+    if (!cart) return []
+    return cart.items.filter((i) => i.stockAvailable < i.quantity || !i.productActive)
+  }, [cart])
+  const hasStockIssue = stockIssues.length > 0
 
   // Auto-select default address
   useEffect(() => {
@@ -94,7 +109,15 @@ export function CheckoutPage() {
       navigate(`/dat-hang/thanh-cong/${result.order.code}`, { replace: true })
     } catch (e) {
       const err = e as AxiosError<ApiResponse<unknown>>
-      toast.error(err.response?.data?.message || 'Đặt hàng thất bại')
+      const beMsg = err.response?.data?.message || ''
+      // Race lúc cuối: BE reject INSUFFICIENT_STOCK vì SP vừa hết ngay trước khi mình đặt.
+      // Không hiện toast đỏ ngắn ngủi — mở dialog xin lỗi lịch sự + refetch giỏ để banner update.
+      if (/tồn kho|hết hàng|ngừng bán|không đủ/i.test(beMsg)) {
+        setStockDialogMsg(beMsg)
+        refetchCart()
+      } else {
+        toast.error(beMsg || 'Đặt hàng thất bại')
+      }
     }
   }
 
@@ -102,6 +125,38 @@ export function CheckoutPage() {
     <div className="container py-6">
       <Breadcrumb items={[{ label: 'Giỏ hàng', to: '/gio-hang' }, { label: 'Thanh toán' }]} />
       <h1 className="text-2xl font-bold mb-6">Thanh toán</h1>
+
+      {hasStockIssue && (
+        <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/5 p-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+            <div className="flex-1 space-y-1 text-sm">
+              <p className="font-semibold text-destructive">
+                Tồn kho vừa thay đổi — không thể đặt đơn với giỏ hàng hiện tại
+              </p>
+              <ul className="ml-4 list-disc space-y-0.5 text-muted-foreground">
+                {stockIssues.map((i) => (
+                  <li key={i.id}>
+                    <span className="font-medium text-foreground">{i.productName}</span>{' '}
+                    {!i.productActive ? (
+                      <span className="text-destructive">— đã ngừng bán</span>
+                    ) : i.stockAvailable === 0 ? (
+                      <span className="text-destructive">— vừa hết hàng</span>
+                    ) : (
+                      <span>— bạn đặt <b>{i.quantity}</b>, hiện chỉ còn <b>{i.stockAvailable}</b></span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <p className="pt-1 text-xs">
+                <Link to="/gio-hang" className="font-medium text-primary hover:underline">
+                  → Về giỏ hàng để chỉnh số lượng hoặc xoá sản phẩm
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
         <div className="space-y-4">
@@ -305,12 +360,46 @@ export function CheckoutPage() {
               <span className="text-primary">{formatPrice(total)}</span>
             </div>
 
-            <Button size="lg" className="w-full" onClick={handleSubmit} disabled={checkout.isPending || !addressId}>
-              {checkout.isPending ? 'Đang đặt hàng...' : 'Đặt hàng'}
+            <Button
+              size="lg"
+              className="w-full"
+              onClick={handleSubmit}
+              disabled={checkout.isPending || !addressId || hasStockIssue}
+              title={hasStockIssue ? 'Hãy chỉnh giỏ hàng trước — có sản phẩm không còn đủ' : undefined}
+            >
+              {checkout.isPending
+                ? 'Đang đặt hàng...'
+                : hasStockIssue
+                  ? 'Cần chỉnh giỏ hàng'
+                  : 'Đặt hàng'}
             </Button>
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog open={!!stockDialogMsg} onOpenChange={(o) => !o && setStockDialogMsg(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Đơn hàng chưa thể tạo
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <span className="block">{stockDialogMsg}</span>
+              <span className="block text-sm">
+                Một khách khác vừa đặt trước bạn vài giây. Địa chỉ và voucher bạn đã chọn vẫn giữ nguyên —
+                bạn chỉ cần về giỏ hàng chỉnh lại số lượng hoặc xoá sản phẩm đã hết, rồi quay lại đặt tiếp.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setStockDialogMsg(null)}>Đóng, xem lại</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setStockDialogMsg(null); navigate('/gio-hang') }}>
+              Về giỏ hàng
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
