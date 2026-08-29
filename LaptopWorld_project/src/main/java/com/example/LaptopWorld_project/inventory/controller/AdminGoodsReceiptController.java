@@ -40,12 +40,32 @@ public class AdminGoodsReceiptController {
         return ApiResponse.ok(goodsReceiptService.findById(id));
     }
 
-    @Operation(summary = "Tạo phiếu nhập kho mới")
+    @Operation(summary = "Tạo phiếu nhập kho mới (trạng thái pending, chưa cộng stock)")
     @PostMapping
     public ApiResponse<GoodsReceiptDto> create(
             @AuthenticationPrincipal UserPrincipal me,
             @Valid @RequestBody GoodsReceiptCreateRequest req) {
-        return ApiResponse.ok("Tạo phiếu nhập thành công",
+        return ApiResponse.ok("Đã tạo phiếu nhập — chờ duyệt",
                 goodsReceiptService.create(me.getId(), req));
+    }
+
+    @Operation(summary = "Duyệt phiếu nhập — cộng stock + kích hoạt lô cho FIFO")
+    @PostMapping("/{id}/approve")
+    public ApiResponse<GoodsReceiptDto> approve(
+            @AuthenticationPrincipal UserPrincipal me,
+            @PathVariable Long id) {
+        return ApiResponse.ok("Đã duyệt phiếu nhập — kho đã được cộng thêm",
+                goodsReceiptService.approve(id, me.getId()));
+    }
+
+    @Operation(summary = "Hủy phiếu nhập (chỉ khi pending) — không đụng stock")
+    @PostMapping("/{id}/cancel")
+    public ApiResponse<GoodsReceiptDto> cancel(
+            @AuthenticationPrincipal UserPrincipal me,
+            @PathVariable Long id,
+            @RequestBody(required = false) java.util.Map<String, String> body) {
+        String reason = body != null ? body.get("reason") : null;
+        return ApiResponse.ok("Đã hủy phiếu nhập",
+                goodsReceiptService.cancel(id, me.getId(), reason));
     }
 }

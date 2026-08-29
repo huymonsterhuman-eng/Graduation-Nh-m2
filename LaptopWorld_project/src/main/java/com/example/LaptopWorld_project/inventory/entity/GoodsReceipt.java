@@ -21,6 +21,10 @@ public class GoodsReceipt extends BaseEntity {
     @Column(nullable = false, unique = true, length = 30)
     private String code;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private GoodsReceiptStatus status = GoodsReceiptStatus.completed;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "supplier_id")
     private Partner supplier;

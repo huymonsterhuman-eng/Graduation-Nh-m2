@@ -41,7 +41,6 @@ export function AdminOrderDetailPage() {
   const { copy } = useCopyToClipboard()
 
   const [action, setAction] = useState<ActionKind>(null)
-  const [trackingNumber, setTrackingNumber] = useState('')
   const [adminNote, setAdminNote] = useState('')
 
   if (isLoading || !order) {
@@ -54,19 +53,17 @@ export function AdminOrderDetailPage() {
 
   const copyCode = () => copy(order.code, `Đã sao chép mã ${order.code}`)
 
-  const doAction = async (newStatus: OrderStatus, tracking?: string, note?: string) => {
+  const doAction = async (newStatus: OrderStatus, note?: string) => {
     try {
       await update.mutateAsync({
         id: order.id,
         body: {
           status: newStatus,
-          trackingNumber: tracking || undefined,
           adminNote: note || undefined,
         },
       })
       toast.success('Đã cập nhật trạng thái')
       setAction(null)
-      setTrackingNumber('')
       setAdminNote('')
     } catch (e) { toast.error((e as Error).message) }
   }
@@ -328,22 +325,14 @@ export function AdminOrderDetailPage() {
             <AlertDialogTitle>Chuyển kho chuẩn bị?</AlertDialogTitle>
             <AlertDialogDescription>
               Chuyển sang <i>Đang chuẩn bị</i> — hệ thống sẽ tự sinh 1 <b>Phiếu xuất kho</b> ở trạng thái
-              <i> Chờ duyệt</i>. Kho phải approve phiếu này thì đơn mới sang <i>Đang giao hàng</i>.
-              <br /><br />
-              Có thể nhập tracking number (mã vận đơn) nếu đã có.
+              <i> Chờ duyệt</i>. Kho phải approve phiếu này (chọn ĐVVC → tự sinh mã vận đơn) thì
+              đơn mới sang <i>Đang giao hàng</i>.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="tracking">Mã vận đơn (tùy chọn)</Label>
-            <input id="tracking" value={trackingNumber}
-              onChange={(e) => setTrackingNumber(e.target.value)}
-              placeholder="SHIP-XXXXXXXX"
-              className="h-9 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-          </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={update.isPending}>Hủy</AlertDialogCancel>
             <AlertDialogAction disabled={update.isPending}
-              onClick={(e) => { e.preventDefault(); doAction('preparing', trackingNumber) }}>
+              onClick={(e) => { e.preventDefault(); doAction('preparing') }}>
               Chuyển kho
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -393,7 +382,7 @@ export function AdminOrderDetailPage() {
             <AlertDialogCancel disabled={update.isPending}>Không</AlertDialogCancel>
             <AlertDialogAction disabled={update.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={(e) => { e.preventDefault(); doAction('cancelled', undefined, adminNote) }}>
+              onClick={(e) => { e.preventDefault(); doAction('cancelled', adminNote) }}>
               Hủy đơn
             </AlertDialogAction>
           </AlertDialogFooter>

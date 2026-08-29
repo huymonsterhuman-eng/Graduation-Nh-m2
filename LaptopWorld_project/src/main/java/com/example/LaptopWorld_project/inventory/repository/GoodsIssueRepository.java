@@ -24,7 +24,15 @@ public interface GoodsIssueRepository extends JpaRepository<GoodsIssue, Long>,
     @EntityGraph(attributePaths = {"order", "author"})
     Page<GoodsIssue> findByStatusOrderByCreatedAtDesc(GoodsIssueStatus status, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"order", "author", "details", "details.product", "details.goodsReceiptDetail"})
+    // Không fetch details.product.images ở đây — sẽ gây MultipleBagFetchException
+    // (Hibernate không fetch được 2 List cùng lúc). Images được lazy load trong mapper,
+    // vẫn OK vì gọi trong @Transactional readOnly (session còn mở).
+    @EntityGraph(attributePaths = {
+            "order", "author",
+            "details",
+            "details.product",
+            "details.goodsReceiptDetail", "details.goodsReceiptDetail.goodsReceipt"
+    })
     Optional<GoodsIssue> findWithDetailsById(Long id);
 
     @Query("SELECT COUNT(g) FROM GoodsIssue g WHERE g.createdAt >= :startOfDay AND g.createdAt < :startOfNextDay")

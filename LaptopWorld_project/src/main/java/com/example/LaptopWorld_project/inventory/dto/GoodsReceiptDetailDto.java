@@ -7,8 +7,9 @@ public record GoodsReceiptDetailDto(
         Long productId,
         String productName,
         String productSku,
+        String productImage,
         int quantity,
         int remainingQuantity,
         BigDecimal importPrice,
-        BigDecimal lineTotal
+        BigDecimal totalPrice
 ) {}

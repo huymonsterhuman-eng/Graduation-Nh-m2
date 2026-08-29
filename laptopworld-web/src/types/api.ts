@@ -479,9 +479,12 @@ export interface GoodsReceiptDetail {
   totalPrice: number
 }
 
+export type GoodsReceiptStatus = 'completed' | 'cancelled'
+
 export interface GoodsReceiptListItem {
   id: number
   code: string
+  status: GoodsReceiptStatus
   supplierName?: string
   userFullName?: string
   totalAmount: number
@@ -492,6 +495,7 @@ export interface GoodsReceiptListItem {
 export interface GoodsReceipt {
   id: number
   code: string
+  status: GoodsReceiptStatus
   supplierId: number
   supplierName?: string
   userId?: number

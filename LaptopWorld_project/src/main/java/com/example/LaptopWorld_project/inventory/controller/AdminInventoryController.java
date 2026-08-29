@@ -11,7 +11,6 @@ import com.example.LaptopWorld_project.inventory.dto.ProductStockSummaryDto;
 import com.example.LaptopWorld_project.inventory.dto.RejectIssueRequest;
 import com.example.LaptopWorld_project.inventory.entity.GoodsIssue;
 import com.example.LaptopWorld_project.inventory.entity.GoodsIssueStatus;
-import com.example.LaptopWorld_project.inventory.mapper.GoodsIssueMapper;
 import com.example.LaptopWorld_project.catalog.service.ReservedStockAuditService;
 import com.example.LaptopWorld_project.inventory.service.InventoryQueryService;
 import com.example.LaptopWorld_project.inventory.service.InventoryService;
@@ -35,7 +34,6 @@ public class AdminInventoryController {
 
     private final InventoryQueryService inventoryQueryService;
     private final InventoryService inventoryService;
-    private final GoodsIssueMapper goodsIssueMapper;
     private final UserRepository userRepository;
     private final ReservedStockAuditService reservedStockAuditService;
 
@@ -85,7 +83,8 @@ public class AdminInventoryController {
             shippingPartnerId = v instanceof Number n ? n.longValue() : Long.parseLong(v.toString());
         }
         GoodsIssue saved = inventoryService.approveIssue(id, actor, shippingPartnerId);
-        return ApiResponse.ok("Đã duyệt phiếu xuất kho", goodsIssueMapper.toDto(saved));
+        // Reload qua query service để trigger EntityGraph + lazy load images trong transaction
+        return ApiResponse.ok("Đã duyệt phiếu xuất kho", inventoryQueryService.findIssueById(saved.getId()));
     }
 
     @Operation(summary = "Kho từ chối phiếu xuất — auto phiếu thì đưa đơn về Đã xác nhận để sales xử lý")
@@ -95,7 +94,7 @@ public class AdminInventoryController {
                                              @Valid @RequestBody(required = false) RejectIssueRequest req) {
         String reason = req != null ? req.reason() : null;
         GoodsIssue saved = inventoryService.rejectIssue(id, reason);
-        return ApiResponse.ok("Đã từ chối phiếu xuất kho", goodsIssueMapper.toDto(saved));
+        return ApiResponse.ok("Đã từ chối phiếu xuất kho", inventoryQueryService.findIssueById(saved.getId()));
     }
 
     @Operation(summary = "Admin tạo phiếu xuất kho manual (không gắn đơn hàng) — vd xuất hủy, tặng quà. Vẫn cần approve để trừ kho")
@@ -106,7 +105,8 @@ public class AdminInventoryController {
         User author = userRepository.findById(me.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", me.getId()));
         GoodsIssue saved = inventoryService.createManualPendingIssue(req, author);
-        return ApiResponse.ok("Đã tạo phiếu xuất manual (chờ duyệt)", goodsIssueMapper.toDto(saved));
+        return ApiResponse.ok("Đã tạo phiếu xuất manual (chờ duyệt)",
+                inventoryQueryService.findIssueById(saved.getId()));
     }
 
     @Operation(summary = "Kiểm toán reserved_stock — đối chiếu con số hệ thống vs đếm lại từ đơn active")

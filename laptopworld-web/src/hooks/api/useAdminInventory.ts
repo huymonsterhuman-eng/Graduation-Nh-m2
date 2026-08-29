@@ -126,6 +126,40 @@ export function useCreateReceipt() {
   })
 }
 
+export function useApproveReceipt() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: number) => {
+      const { data } = await api.post<ApiResponse<GoodsReceipt>>(`/admin/goods-receipts/${id}/approve`)
+      if (!data.success) throw new Error(data.message || 'Duyệt thất bại')
+      return data.data
+    },
+    onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'receipts'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'receipt', id] })
+      qc.invalidateQueries({ queryKey: ['admin', 'inventory-batches'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'products'] })
+    },
+  })
+}
+
+export function useCancelReceipt() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, reason }: { id: number; reason?: string }) => {
+      const { data } = await api.post<ApiResponse<GoodsReceipt>>(
+        `/admin/goods-receipts/${id}/cancel`, { reason }
+      )
+      if (!data.success) throw new Error(data.message || 'Hủy thất bại')
+      return data.data
+    },
+    onSuccess: (_, { id }) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'receipts'] })
+      qc.invalidateQueries({ queryKey: ['admin', 'receipt', id] })
+    },
+  })
+}
+
 // ================== Goods Issues ==================
 
 export interface AdminIssuesFilter {

@@ -1,16 +1,15 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft, Save, Trash2, Package, PackageMinus, FileText, AlertTriangle,
+  ArrowLeft, Save, Trash2, Package, PackageMinus, FileText, AlertTriangle, Plus,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader'
 import { AdminSection } from '@/components/admin/common/AdminSection'
-import { ProductCombobox } from '@/components/admin/common/ProductCombobox'
+import { ProductPickerDialog } from '@/components/admin/common/ProductPickerDialog'
 import { useCreateManualIssue } from '@/hooks/api/useAdminInventory'
 import { productImageSrc } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -30,17 +29,22 @@ export function AdminCreateIssuePage() {
 
   const [note, setNote] = useState('')
   const [rows, setRows] = useState<Row[]>([])
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   const totalQty = rows.reduce((s, r) => s + r.quantity, 0)
 
-  const addRow = (p: ProductListItem) => {
-    if (rows.some((r) => r.productId === p.id)) {
-      toast.info(`"${p.name}" đã có trong phiếu`); return
+  const addProducts = (products: ProductListItem[]) => {
+    const existingIds = new Set(rows.map((r) => r.productId))
+    const newRows = products
+      .filter((p) => !existingIds.has(p.id))
+      .map((p) => ({
+        productId: p.id, productName: p.name, productImage: p.primaryImage,
+        currentStock: p.stock, quantity: 1,
+      }))
+    if (newRows.length > 0) {
+      setRows([...rows, ...newRows])
+      toast.success(`Đã thêm ${newRows.length} sản phẩm`)
     }
-    setRows([...rows, {
-      productId: p.id, productName: p.name, productImage: p.primaryImage,
-      currentStock: p.stock, quantity: 1,
-    }])
   }
   const updateRow = (idx: number, patch: Partial<Row>) => {
     const next = [...rows]; next[idx] = { ...next[idx], ...patch }; setRows(next)
@@ -86,20 +90,17 @@ export function AdminCreateIssuePage() {
           {/* Products */}
           <AdminSection
             title={`Sản phẩm (${rows.length})`}
-            description="Gõ tên để tìm — SL xuất không được vượt tồn kho"
+            description="Bấm 'Chọn sản phẩm' để mở danh sách có lọc theo danh mục / thương hiệu — chỉ SP còn tồn mới chọn được"
             icon={Package}
           >
             <div className="space-y-3">
-              <ProductCombobox
-                placeholder="Tìm SP để xuất kho..."
-                excludeIds={rows.map((r) => r.productId)}
-                requireStock
-                onPick={(p) => addRow(p)}
-              />
+              <Button variant="outline" onClick={() => setPickerOpen(true)} className="w-full sm:w-auto">
+                <Plus className="mr-2 h-4 w-4" /> Chọn sản phẩm
+              </Button>
 
               {rows.length === 0 ? (
                 <div className="grid place-items-center rounded-md border border-dashed py-6 text-sm text-muted-foreground">
-                  Dùng thanh tìm ở trên để chọn SP.
+                  Chưa có SP nào — bấm "Chọn sản phẩm" ở trên để thêm.
                 </div>
               ) : (
                 <div className="overflow-hidden rounded-md border">
@@ -186,6 +187,16 @@ export function AdminCreateIssuePage() {
           </AdminSection>
         </div>
       </div>
+
+      <ProductPickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        excludeIds={rows.map((r) => r.productId)}
+        onConfirm={addProducts}
+        requireStock
+        title="Chọn sản phẩm để xuất kho"
+        description="Chỉ SP còn tồn kho mới chọn được. Số lượng xuất chỉnh sau ở bảng bên dưới."
+      />
     </div>
   )
 }

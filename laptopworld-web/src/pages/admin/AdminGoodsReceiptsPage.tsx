@@ -1,40 +1,72 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArchiveRestore, Plus, Eye, Search, X, Trash2 } from 'lucide-react'
+import { ArchiveRestore, Plus, Eye, X, CheckCircle2, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader'
+import { AdminTable, type AdminColumn } from '@/components/admin/common/AdminTable'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog'
-import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader'
-import { AdminTable, type AdminColumn } from '@/components/admin/common/AdminTable'
-import { ProductCombobox } from '@/components/admin/common/ProductCombobox'
-import {
-  useAdminReceipts, useAdminReceiptDetail, useCreateReceipt,
-  usePartners,
-  type ReceiptItemInput,
+  useAdminReceipts, useAdminReceiptDetail,
+  useApproveReceipt, useCancelReceipt,
 } from '@/hooks/api/useAdminInventory'
 import { formatPrice, formatDateTime, productImageSrc } from '@/lib/format'
-import type { GoodsReceiptListItem, ProductListItem } from '@/types/api'
+import type { GoodsReceiptListItem, GoodsReceiptStatus } from '@/types/api'
+
+const RECEIPT_STATUS_META: Record<GoodsReceiptStatus, { label: string; className: string }> = {
+  pending: {
+    label: 'Chờ duyệt',
+    className: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
+  },
+  completed: {
+    label: 'Đã duyệt',
+    className: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+  },
+  cancelled: {
+    label: 'Đã hủy',
+    className: 'bg-rose-500/15 text-rose-700 dark:text-rose-300',
+  },
+}
+
+function ReceiptStatusBadge({ status }: { status: GoodsReceiptStatus }) {
+  const meta = RECEIPT_STATUS_META[status] ?? RECEIPT_STATUS_META.completed
+  return <Badge className={meta.className}>{meta.label}</Badge>
+}
 
 export function AdminGoodsReceiptsPage() {
   const [page, setPage] = useState(0)
-  const [createOpen, setCreateOpen] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<GoodsReceiptStatus | 'ALL'>('ALL')
   const [detailId, setDetailId] = useState<number | null>(null)
 
   const { data: paged, isLoading } = useAdminReceipts({ page, size: 20 })
+
+  const filteredContent = (paged?.content ?? []).filter(
+    (r) => statusFilter === 'ALL' || r.status === statusFilter
+  )
+  const statusCounts = (paged?.content ?? []).reduce(
+    (acc, r) => { acc[r.status] = (acc[r.status] ?? 0) + 1; return acc },
+    {} as Record<GoodsReceiptStatus, number>
+  )
 
   const columns: AdminColumn<GoodsReceiptListItem>[] = [
     {
       key: 'code', header: 'Mã phiếu',
       cell: (r) => <span className="font-mono text-sm font-medium">{r.code}</span>,
+    },
+    {
+      key: 'status', header: 'Trạng thái',
+      cell: (r) => <ReceiptStatusBadge status={r.status} />,
     },
     {
       key: 'supplier', header: 'Nhà cung cấp',
@@ -47,10 +79,6 @@ export function AdminGoodsReceiptsPage() {
     {
       key: 'total', header: 'Tổng tiền', align: 'right',
       cell: (r) => <span className="font-semibold">{formatPrice(r.totalAmount)}</span>,
-    },
-    {
-      key: 'note', header: 'Ghi chú', className: 'max-w-xs',
-      cell: (r) => <span className="line-clamp-2 text-xs text-muted-foreground">{r.note || '—'}</span>,
     },
     {
       key: 'time', header: 'Ngày nhập',
@@ -84,10 +112,21 @@ export function AdminGoodsReceiptsPage() {
 
       <AdminTable<GoodsReceiptListItem>
         columns={columns}
-        data={paged?.content}
+        data={filteredContent}
         rowKey={(r) => r.id}
         isLoading={isLoading}
-        emptyMessage="Chưa có phiếu nhập nào"
+        emptyMessage={statusFilter === 'ALL' ? 'Chưa có phiếu nhập nào' : `Không có phiếu nào ở trạng thái "${RECEIPT_STATUS_META[statusFilter as GoodsReceiptStatus]?.label}"`}
+        toolbar={
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as GoodsReceiptStatus | 'ALL')}>
+            <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Tất cả trạng thái ({paged?.content.length ?? 0})</SelectItem>
+              <SelectItem value="pending">Chờ duyệt ({statusCounts.pending ?? 0})</SelectItem>
+              <SelectItem value="completed">Đã duyệt ({statusCounts.completed ?? 0})</SelectItem>
+              <SelectItem value="cancelled">Đã hủy ({statusCounts.cancelled ?? 0})</SelectItem>
+            </SelectContent>
+          </Select>
+        }
       />
 
       {paged && paged.totalPages > 1 && (
@@ -104,173 +143,8 @@ export function AdminGoodsReceiptsPage() {
         </div>
       )}
 
-      {createOpen && <CreateReceiptDialog onClose={() => setCreateOpen(false)} />}
       {detailId && <ReceiptDetailDialog id={detailId} onClose={() => setDetailId(null)} />}
     </div>
-  )
-}
-
-// =============== Create dialog ===============
-
-interface RowState extends ReceiptItemInput {
-  productName?: string
-  productImage?: string
-  currentStock?: number
-}
-
-function CreateReceiptDialog({ onClose }: { onClose: () => void }) {
-  const { data: partners } = usePartners('supplier')
-  const create = useCreateReceipt()
-
-  const [supplierId, setSupplierId] = useState<string>('')
-  const [note, setNote] = useState('')
-  const [rows, setRows] = useState<RowState[]>([])
-
-  const totalAmount = rows.reduce((sum, r) => sum + (Number(r.quantity) || 0) * (Number(r.importPrice) || 0), 0)
-
-  const addRow = (p: ProductListItem) => {
-    if (rows.some((r) => r.productId === p.id)) {
-      toast.info(`"${p.name}" đã có trong phiếu`)
-      return
-    }
-    setRows([...rows, {
-      productId: p.id,
-      productName: p.name,
-      productImage: p.primaryImage,
-      currentStock: p.stock,
-      quantity: 1,
-      importPrice: Number((p.price * 0.85).toFixed(0)),  // gợi ý 85% giá bán
-    }])
-  }
-
-  const updateRow = (idx: number, patch: Partial<RowState>) => {
-    const next = [...rows]
-    next[idx] = { ...next[idx], ...patch }
-    setRows(next)
-  }
-  const removeRow = (idx: number) => setRows(rows.filter((_, i) => i !== idx))
-
-  const submit = async () => {
-    if (!supplierId) { toast.error('Chưa chọn nhà cung cấp'); return }
-    if (rows.length === 0) { toast.error('Chưa có sản phẩm nào'); return }
-    for (const r of rows) {
-      if (r.quantity <= 0) { toast.error(`SP "${r.productName}" cần số lượng > 0`); return }
-      if (r.importPrice <= 0) { toast.error(`SP "${r.productName}" cần giá nhập > 0`); return }
-    }
-    try {
-      await create.mutateAsync({
-        supplierId: Number(supplierId),
-        note: note || undefined,
-        items: rows.map((r) => ({
-          productId: r.productId,
-          quantity: r.quantity,
-          importPrice: r.importPrice,
-        })),
-      })
-      toast.success('Đã tạo phiếu nhập — kho đã được cộng thêm')
-      onClose()
-    } catch (e) { toast.error((e as Error).message) }
-  }
-
-  return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl">
-        <DialogHeader>
-          <DialogTitle>Tạo phiếu nhập kho</DialogTitle>
-          <DialogDescription>
-            Chọn nhà cung cấp, thêm SP, nhập số lượng + giá nhập. Kho sẽ tự cộng thêm khi lưu.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Nhà cung cấp *</Label>
-            <Select value={supplierId} onValueChange={setSupplierId}>
-              <SelectTrigger><SelectValue placeholder="Chọn nhà cung cấp" /></SelectTrigger>
-              <SelectContent>
-                {(partners ?? []).filter((p) => p.isActive).map((p) => (
-                  <SelectItem key={p.id} value={String(p.id)}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Ghi chú</Label>
-            <Input value={note} onChange={(e) => setNote(e.target.value)}
-              placeholder="Nhập hàng đầu tháng, v.v..." />
-          </div>
-        </div>
-
-        {/* Items table */}
-        <div className="space-y-2">
-          <Label>Sản phẩm ({rows.length})</Label>
-
-          <ProductCombobox
-            placeholder="Tìm SP theo tên để thêm vào phiếu nhập..."
-            excludeIds={rows.map((r) => r.productId)}
-            onPick={(p) => addRow(p)}
-          />
-
-          {rows.length === 0 ? (
-            <Card className="grid place-items-center border-dashed py-8 text-sm text-muted-foreground">
-              Dùng thanh tìm ở trên để chọn SP.
-            </Card>
-          ) : (
-            <Card className="overflow-hidden">
-              <div className="grid grid-cols-[1fr_100px_140px_140px_40px] gap-2 border-b bg-muted/40 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                <span>Sản phẩm</span>
-                <span className="text-right">Số lượng</span>
-                <span className="text-right">Giá nhập (đ)</span>
-                <span className="text-right">Thành tiền</span>
-                <span />
-              </div>
-              <div className="divide-y">
-                {rows.map((r, i) => (
-                  <div key={r.productId} className="grid grid-cols-[1fr_100px_140px_140px_40px] items-center gap-2 px-3 py-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <img src={productImageSrc(r.productImage)} alt=""
-                        className="h-10 w-10 shrink-0 rounded object-cover" />
-                      <div className="min-w-0">
-                        <div className="line-clamp-1 text-sm font-medium">{r.productName}</div>
-                        <div className="text-xs text-muted-foreground">
-                          Tồn hiện tại: {r.currentStock ?? '?'}
-                        </div>
-                      </div>
-                    </div>
-                    <Input type="number" min={1} value={r.quantity}
-                      onChange={(e) => updateRow(i, { quantity: Math.max(1, Number(e.target.value) || 1) })}
-                      className="h-9 text-right" />
-                    <Input type="number" min={0} value={r.importPrice}
-                      onChange={(e) => updateRow(i, { importPrice: Math.max(0, Number(e.target.value) || 0) })}
-                      className="h-9 text-right" />
-                    <div className="text-right text-sm font-semibold">
-                      {formatPrice(r.quantity * r.importPrice)}
-                    </div>
-                    <Button type="button" variant="ghost" size="icon" onClick={() => removeRow(i)}
-                      title="Xóa dòng">
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-              <div className="flex justify-end border-t bg-muted/30 px-3 py-2 text-sm">
-                <div className="text-right">
-                  <div className="text-xs text-muted-foreground">Tổng tiền phiếu</div>
-                  <div className="text-lg font-bold text-primary">{formatPrice(totalAmount)}</div>
-                </div>
-              </div>
-            </Card>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={create.isPending}>Hủy</Button>
-          <Button onClick={submit} disabled={create.isPending || rows.length === 0}>
-            {create.isPending ? 'Đang lưu...' : 'Lưu phiếu nhập'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   )
 }
 
@@ -278,6 +152,30 @@ function CreateReceiptDialog({ onClose }: { onClose: () => void }) {
 
 function ReceiptDetailDialog({ id, onClose }: { id: number; onClose: () => void }) {
   const { data: receipt, isLoading } = useAdminReceiptDetail(id)
+  const approve = useApproveReceipt()
+  const cancel = useCancelReceipt()
+
+  const [confirmAction, setConfirmAction] = useState<'approve' | 'cancel' | null>(null)
+  const [cancelReason, setCancelReason] = useState('')
+
+  const isPending = receipt?.status === 'pending'
+
+  const doApprove = async () => {
+    try {
+      await approve.mutateAsync(id)
+      toast.success('Đã duyệt phiếu — kho đã được cộng thêm')
+      setConfirmAction(null)
+    } catch (e) { toast.error((e as Error).message) }
+  }
+
+  const doCancel = async () => {
+    try {
+      await cancel.mutateAsync({ id, reason: cancelReason || undefined })
+      toast.success('Đã hủy phiếu nhập')
+      setConfirmAction(null)
+      setCancelReason('')
+    } catch (e) { toast.error((e as Error).message) }
+  }
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -287,6 +185,7 @@ function ReceiptDetailDialog({ id, onClose }: { id: number; onClose: () => void 
             <ArchiveRestore className="h-5 w-5" />
             {isLoading || !receipt ? 'Đang tải...' : (
               <><span className="font-mono">{receipt.code}</span>
+              <ReceiptStatusBadge status={receipt.status} />
               <Badge variant="outline">{formatPrice(receipt.totalAmount)}</Badge></>
             )}
           </DialogTitle>
@@ -320,7 +219,21 @@ function ReceiptDetailDialog({ id, onClose }: { id: number; onClose: () => void 
                     <span className="text-right text-sm">{it.quantity}</span>
                     <span className="text-right text-sm">{formatPrice(it.importPrice)}</span>
                     <span className="text-right">
-                      <Badge variant={it.remainingQuantity > 0 ? 'default' : 'secondary'}>{it.remainingQuantity}</Badge>
+                      {receipt.status === 'cancelled' ? (
+                        <span className="text-xs text-muted-foreground">Đã hủy</span>
+                      ) : isPending ? (
+                        <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                          title="Chưa nhập vào kho — bấm Duyệt phiếu để cộng.">
+                          Chờ nhập
+                        </Badge>
+                      ) : (
+                        <Badge variant={it.remainingQuantity > 0 ? 'default' : 'secondary'}
+                          title={it.remainingQuantity > 0
+                            ? `Còn ${it.remainingQuantity} sản phẩm trong lô này (đã bán ${it.quantity - it.remainingQuantity})`
+                            : 'Lô này đã bán hết'}>
+                          {it.remainingQuantity} / {it.quantity}
+                        </Badge>
+                      )}
                     </span>
                     <span className="text-right text-sm font-semibold">{formatPrice(it.totalPrice)}</span>
                   </div>
@@ -330,11 +243,70 @@ function ReceiptDetailDialog({ id, onClose }: { id: number; onClose: () => void 
           </>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose}>
             <X className="mr-2 h-3 w-3" /> Đóng
           </Button>
+          {isPending && (
+            <>
+              <Button variant="destructive" onClick={() => setConfirmAction('cancel')}>
+                <XCircle className="mr-2 h-4 w-4" /> Hủy phiếu
+              </Button>
+              <Button onClick={() => setConfirmAction('approve')}>
+                <CheckCircle2 className="mr-2 h-4 w-4" /> Duyệt phiếu
+              </Button>
+            </>
+          )}
         </DialogFooter>
+
+        {/* Approve confirm */}
+        <AlertDialog open={confirmAction === 'approve'} onOpenChange={(o) => !o && setConfirmAction(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Xác nhận nhập hàng vào kho?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Sau khi xác nhận, hàng trong phiếu <b className="font-mono">{receipt?.code}</b> sẽ
+                được cộng vào tồn kho và có thể bán ngay. Thao tác này <b>không thể hoàn tác</b>.
+                Nếu sau này phát hiện nhập sai, bạn cần tạo <b>phiếu xuất</b> để điều chỉnh.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={approve.isPending}>Xem lại</AlertDialogCancel>
+              <AlertDialogAction disabled={approve.isPending}
+                onClick={(e) => { e.preventDefault(); doApprove() }}>
+                {approve.isPending ? 'Đang xử lý...' : 'Xác nhận nhập kho'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Cancel confirm */}
+        <AlertDialog open={confirmAction === 'cancel'} onOpenChange={(o) => !o && setConfirmAction(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Hủy phiếu này?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Phiếu <b className="font-mono">{receipt?.code}</b> chưa được duyệt nên không ảnh hưởng
+                đến kho. Sau khi hủy sẽ không mở lại được — nếu cần nhập lại, bạn phải tạo phiếu mới.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="cancel-reason">Lý do hủy (tùy chọn)</Label>
+              <textarea id="cancel-reason" rows={2} value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="VD: nhập nhầm giá, sai số lượng, đổi nhà cung cấp..."
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={cancel.isPending}>Không</AlertDialogCancel>
+              <AlertDialogAction disabled={cancel.isPending}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={(e) => { e.preventDefault(); doCancel() }}>
+                {cancel.isPending ? 'Đang hủy...' : 'Hủy phiếu'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   )

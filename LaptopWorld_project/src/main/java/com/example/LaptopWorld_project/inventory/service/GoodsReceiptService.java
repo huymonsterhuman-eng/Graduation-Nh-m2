@@ -11,6 +11,7 @@ import com.example.LaptopWorld_project.inventory.dto.GoodsReceiptItemRequest;
 import com.example.LaptopWorld_project.inventory.dto.GoodsReceiptListItemDto;
 import com.example.LaptopWorld_project.inventory.entity.GoodsReceipt;
 import com.example.LaptopWorld_project.inventory.entity.GoodsReceiptDetail;
+import com.example.LaptopWorld_project.inventory.entity.GoodsReceiptStatus;
 import com.example.LaptopWorld_project.inventory.entity.Partner;
 import com.example.LaptopWorld_project.inventory.entity.PartnerType;
 import com.example.LaptopWorld_project.inventory.mapper.GoodsReceiptMapper;
@@ -56,6 +57,11 @@ public class GoodsReceiptService {
         return goodsReceiptMapper.toDto(receipt);
     }
 
+    /**
+     * Tạo phiếu nhập ở trạng thái <b>pending</b> — chưa cộng stock, {@code remaining_quantity=0}
+     * (FIFO tự động skip vì query lọc {@code remaining > 0}).
+     * Chờ admin gọi {@link #approve(Long, Long)} để cộng kho + kích hoạt lô cho FIFO.
+     */
     @Transactional
     public GoodsReceiptDto create(Long currentUserId, GoodsReceiptCreateRequest req) {
         Partner supplier = partnerRepository.findById(req.supplierId())
@@ -77,6 +83,7 @@ public class GoodsReceiptService {
         receipt.setUser(user);
         receipt.setNote(req.note());
         receipt.setCode(generateCode());
+        receipt.setStatus(GoodsReceiptStatus.pending);
 
         BigDecimal total = BigDecimal.ZERO;
         for (GoodsReceiptItemRequest item : req.items()) {
@@ -93,19 +100,59 @@ public class GoodsReceiptService {
             GoodsReceiptDetail detail = new GoodsReceiptDetail();
             detail.setProduct(product);
             detail.setQuantity(item.quantity());
-            detail.setRemainingQuantity(item.quantity());
+            // remaining = 0 vì phiếu pending — FIFO tự skip. Sẽ set = quantity khi approve.
+            detail.setRemainingQuantity(0);
             detail.setImportPrice(item.importPrice());
             receipt.addDetail(detail);
 
             total = total.add(item.importPrice().multiply(BigDecimal.valueOf(item.quantity())));
-
-            // Tăng cache stock trên products
-            product.setStock(product.getStock() + item.quantity());
         }
         receipt.setTotalAmount(total);
 
         GoodsReceipt saved = goodsReceiptRepository.save(receipt);
         return goodsReceiptMapper.toDto(saved);
+    }
+
+    /**
+     * Admin duyệt phiếu pending: chuyển sang <b>completed</b>, cộng stock,
+     * kích hoạt lô cho FIFO ({@code remaining_quantity = quantity}).
+     */
+    @Transactional
+    public GoodsReceiptDto approve(Long id, Long actorUserId) {
+        GoodsReceipt receipt = goodsReceiptRepository.findWithDetailsById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("GoodsReceipt", id));
+        if (receipt.getStatus() != GoodsReceiptStatus.pending) {
+            throw new BusinessException("INVALID_STATUS",
+                    "Chỉ duyệt được phiếu đang chờ (pending). Phiếu hiện tại: " + receipt.getStatus());
+        }
+        for (GoodsReceiptDetail d : receipt.getDetails()) {
+            d.setRemainingQuantity(d.getQuantity());
+            Product p = d.getProduct();
+            p.setStock(p.getStock() + d.getQuantity());
+        }
+        receipt.setStatus(GoodsReceiptStatus.completed);
+        return goodsReceiptMapper.toDto(receipt);
+    }
+
+    /**
+     * Admin hủy phiếu pending — không đụng stock (do stock chưa cộng).
+     * Đã completed rồi phát hiện nhầm → dùng Phiếu xuất manual để cân đối, không rollback.
+     */
+    @Transactional
+    public GoodsReceiptDto cancel(Long id, Long actorUserId, String reason) {
+        GoodsReceipt receipt = goodsReceiptRepository.findWithDetailsById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("GoodsReceipt", id));
+        if (receipt.getStatus() != GoodsReceiptStatus.pending) {
+            throw new BusinessException("INVALID_STATUS",
+                    "Chỉ hủy được phiếu đang chờ (pending). Đã duyệt rồi thì tạo phiếu xuất manual để cân đối kho.");
+        }
+        receipt.setStatus(GoodsReceiptStatus.cancelled);
+        if (reason != null && !reason.isBlank()) {
+            String prev = receipt.getNote();
+            String note = "[Hủy] " + reason;
+            receipt.setNote(prev == null || prev.isBlank() ? note : prev + "\n" + note);
+        }
+        return goodsReceiptMapper.toDto(receipt);
     }
 
     /**

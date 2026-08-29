@@ -173,25 +173,21 @@ function BatchesDialog({
           <div className="py-8 text-center text-sm text-muted-foreground">Đang tải...</div>
         ) : (
           <>
-            <div className="grid gap-3 text-sm md:grid-cols-3">
+            <div className="grid gap-3 text-sm md:grid-cols-2">
               <Card className="p-3">
-                <div className="text-xs uppercase text-muted-foreground">Tồn (cache)</div>
-                <div className="text-2xl font-bold">{data.cachedStock}</div>
-              </Card>
-              <Card className="p-3">
-                <div className="text-xs uppercase text-muted-foreground">Tổng còn theo lô</div>
+                <div className="text-xs uppercase text-muted-foreground">Tồn kho hiện tại</div>
                 <div className="text-2xl font-bold text-primary">{data.totalRemaining}</div>
               </Card>
               <Card className="p-3">
-                <div className="text-xs uppercase text-muted-foreground">Số lô</div>
+                <div className="text-xs uppercase text-muted-foreground">Số lô nhập còn hàng</div>
                 <div className="text-2xl font-bold">{data.batchCount}</div>
               </Card>
             </div>
 
             {data.cachedStock !== data.totalRemaining && (
               <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-700 dark:text-amber-400">
-                ⚠ Tồn cache ({data.cachedStock}) không khớp tổng còn theo lô ({data.totalRemaining}).
-                Có thể do dữ liệu seed thủ công. Xuất nhập kho tiếp theo sẽ đồng bộ.
+                ⚠ Số hiển thị ở danh sách sản phẩm ({data.cachedStock}) đang lệch so với tổng theo lô nhập
+                ({data.totalRemaining}). Lần nhập/xuất tiếp theo hệ thống sẽ tự đồng bộ lại.
               </div>
             )}
 

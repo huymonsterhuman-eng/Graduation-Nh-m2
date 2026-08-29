@@ -2,19 +2,18 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Save, Trash2, Package, ArchiveRestore, FileText,
-  Handshake, Receipt,
+  Handshake, Receipt, Plus,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader'
 import { AdminSection } from '@/components/admin/common/AdminSection'
-import { ProductCombobox } from '@/components/admin/common/ProductCombobox'
+import { ProductPickerDialog } from '@/components/admin/common/ProductPickerDialog'
 import {
   usePartners, useCreateReceipt,
 } from '@/hooks/api/useAdminInventory'
@@ -40,23 +39,28 @@ export function AdminCreateReceiptPage() {
   const [supplierId, setSupplierId] = useState<string>('')
   const [note, setNote] = useState('')
   const [rows, setRows] = useState<RowState[]>([])
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   const totalAmount = rows.reduce((sum, r) => sum + (r.quantity || 0) * (r.importPrice || 0), 0)
   const totalQty = rows.reduce((s, r) => s + r.quantity, 0)
 
-  const addRow = (p: ProductListItem) => {
-    if (rows.some((r) => r.productId === p.id)) {
-      toast.info(`"${p.name}" đã có trong phiếu`); return
+  const addProducts = (products: ProductListItem[]) => {
+    const existingIds = new Set(rows.map((r) => r.productId))
+    const newRows = products
+      .filter((p) => !existingIds.has(p.id))
+      .map((p) => ({
+        productId: p.id,
+        productName: p.name,
+        productImage: p.primaryImage,
+        currentStock: p.stock,
+        price: p.price,
+        quantity: 1,
+        importPrice: Number((p.price * 0.85).toFixed(0)),  // gợi ý 85% giá bán
+      }))
+    if (newRows.length > 0) {
+      setRows([...rows, ...newRows])
+      toast.success(`Đã thêm ${newRows.length} sản phẩm`)
     }
-    setRows([...rows, {
-      productId: p.id,
-      productName: p.name,
-      productImage: p.primaryImage,
-      currentStock: p.stock,
-      price: p.price,
-      quantity: 1,
-      importPrice: Number((p.price * 0.85).toFixed(0)),  // gợi ý 85% giá bán
-    }])
   }
 
   const updateRow = (idx: number, patch: Partial<RowState>) => {
@@ -84,7 +88,7 @@ export function AdminCreateReceiptPage() {
           importPrice: r.importPrice,
         })),
       })
-      toast.success('Đã tạo phiếu nhập — kho đã được cộng thêm')
+      toast.success('Đã tạo phiếu nhập — chờ duyệt để cộng kho')
       navigate('/admin/phieu-nhap')
     } catch (e) { toast.error((e as Error).message) }
   }
@@ -109,19 +113,17 @@ export function AdminCreateReceiptPage() {
           {/* Products */}
           <AdminSection
             title={`Sản phẩm (${rows.length})`}
-            description="Gõ tên để tìm — số lượng + giá nhập nhập tay theo lô"
+            description="Bấm 'Chọn sản phẩm' để mở danh sách có lọc theo danh mục / thương hiệu — chọn nhiều SP cùng lúc"
             icon={Package}
           >
             <div className="space-y-3">
-              <ProductCombobox
-                placeholder="Tìm SP để thêm vào phiếu nhập..."
-                excludeIds={rows.map((r) => r.productId)}
-                onPick={(p) => addRow(p)}
-              />
+              <Button variant="outline" onClick={() => setPickerOpen(true)} className="w-full sm:w-auto">
+                <Plus className="mr-2 h-4 w-4" /> Chọn sản phẩm
+              </Button>
 
               {rows.length === 0 ? (
                 <div className="grid place-items-center rounded-md border border-dashed py-6 text-sm text-muted-foreground">
-                  Dùng thanh tìm ở trên để chọn SP.
+                  Chưa có SP nào — bấm "Chọn sản phẩm" ở trên để thêm.
                 </div>
               ) : (
                 <div className="overflow-hidden rounded-md border">
@@ -234,13 +236,23 @@ export function AdminCreateReceiptPage() {
             compact
           >
             <div className="space-y-1 text-xs text-muted-foreground">
-              <p>• Sau khi lưu, kho <b>tự động cộng thêm</b> vào <code>products.stock</code></p>
-              <p>• <b>Giá nhập ≤ Giá bán</b> — chặn để tránh lỗ</p>
-              <p>• Gợi ý giá: 85% giá bán (có thể chỉnh)</p>
+              <p>• Sau khi lưu, phiếu ở trạng thái <b>chờ duyệt</b> — kho <b>chưa</b> cộng.</p>
+              <p>• Admin vào chi tiết phiếu → <b>Duyệt</b> để cộng kho + kích hoạt lô cho FIFO.</p>
+              <p>• Nếu nhập nhầm khi chưa duyệt → bấm <b>Hủy phiếu</b>. Đã duyệt rồi thì tạo <b>Phiếu xuất thủ công</b> để cân đối.</p>
+              <p>• <b>Giá nhập ≤ Giá bán</b> — chặn để tránh lỗ. Gợi ý giá: 85% giá bán.</p>
             </div>
           </AdminSection>
         </div>
       </div>
+
+      <ProductPickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        excludeIds={rows.map((r) => r.productId)}
+        onConfirm={addProducts}
+        title="Chọn sản phẩm để nhập kho"
+        description="Chọn nhiều SP cùng lúc — số lượng + giá nhập chỉnh sau ở bảng bên dưới."
+      />
     </div>
   )
 }
