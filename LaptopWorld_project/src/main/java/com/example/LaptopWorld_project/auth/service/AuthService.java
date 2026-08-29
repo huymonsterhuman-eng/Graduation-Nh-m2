@@ -145,6 +145,32 @@ public class AuthService {
         refreshTokenService.revoke(rawRefreshToken);
     }
 
+    // ==================== CHANGE PASSWORD ====================
+    /**
+     * Đổi mật khẩu khi user đã login: verify current password → set new → revoke tất cả
+     * refresh token (buộc mọi thiết bị login lại bằng mật khẩu mới).
+     */
+    @Transactional
+    public void changePassword(String username, String currentPassword, String newPassword) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new BusinessException("USER_NOT_FOUND", "Người dùng không tồn tại"));
+
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new BusinessException(HttpStatus.UNAUTHORIZED, "INVALID_CURRENT_PASSWORD",
+                    "Mật khẩu hiện tại không đúng");
+        }
+        if (passwordEncoder.matches(newPassword, user.getPassword())) {
+            throw new BusinessException("SAME_PASSWORD",
+                    "Mật khẩu mới phải khác mật khẩu hiện tại");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        refreshTokenService.revokeAllForUser(user.getId());
+        log.info("Password changed for user id={} username={}", user.getId(), user.getUsername());
+    }
+
     // ==================== ME ====================
     @Transactional(readOnly = true)
     public MeResponse me(String username) {

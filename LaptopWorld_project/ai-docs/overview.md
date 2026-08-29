@@ -8,7 +8,7 @@
 
 > **Đề tài:** Xây dựng hệ thống thương mại điện tử tích hợp trợ lý AI hỗ trợ tư vấn sản phẩm cho **LaptopWorld**.
 > **Loại:** Đồ án tốt nghiệp.
-> **Cập nhật:** 2026-08-26 (Polish MegaMenu + brand filter theo category — xem cuối doc). **Phase 11 ✅ HOÀN THÀNH** — 5 bước 11A→11E xong: 57 test tự động (41 unit + 16 integration Testcontainers) pass < 45s; Docker Compose 3 container end-to-end (`docker compose up -d` truy cập `http://localhost` OK, ảnh SP hiển thị); `AuthRateLimiter` chống brute-force login/register/forgot-password; [security-audit.md](security-audit.md) verify 0 IDOR + config prod hardened; V22 seed 5 user + 5 voucher + 10 order rải qua 6 status; Newman 154 request pass in 20.8s → [newman-report.html](newman-report.html) 2.8MB; [testcases.md](testcases.md) mở rộng từ 38 → 93 case cho báo cáo. **Hotfix cùng ngày ✅ HOÀN THÀNH (user đã verify STAFF login thành công):** (1) Tách bạch session admin/customer bằng field `loginSource` — 4 file FE (`auth.ts`, `LoginPage.tsx`, `AdminLoginPage.tsx`, `AdminProtectedRoute.tsx`); (2) **Fix bug backend chính:** `LoginResponse.UserInfo` chỉ có `roles` mà **thiếu `permissions[]`** (bỏ sót từ Sprint 9G-perm, chỉ `/auth/me` trả) — thêm field `permissions: List<String>` vào record + `AuthService.toUserInfo()` collect từ `user.roles.permissions`. Trước bug không lộ vì user luôn login ADMIN (bypass permission check); STAFF login → `hasPermission('access_admin')=undefined` → AdminLoginPage tự logout. **Polish 9F round 2 (cùng ngày, commit `41e1c53`):** (a) Cleanup demo data — xoá 15 orders `ORD-DEMO/TEST/REV-*` + 5 goods_issues + 3 users `user3/4/5`; (b) AdminBrandsPage thêm cột "Logo" (header text) + "Sản phẩm" (badge count), guardrail xoá disable khi còn SP + khoá slug khi còn SP + warn realtime khi tắt isActive; (c) Banner đa slot — V23 `banners.position` (hero_carousel/sidebar_phone/sidebar_laptop), V24 `banners.image_fit`, endpoint `GET /api/banners/slot/{position}` + hook `useBannerBySlot`, admin form Select vị trí; (d) Image cropper với `react-easy-crop` — `ImageCropperDialog` kéo/zoom/xoay + canvas→JPEG blob→upload lại, auto mở sau upload banner, aspect 16:9 hero / 1:3 sidebar; (e) `CategorySection` sidebar aspect-[1/3] cứng khớp cropper, ảnh fill 100% object-cover không cắt mép. Còn **Phase 12** (báo cáo Word + slide + video demo).
+> **Cập nhật:** 2026-08-29 (Bổ sung Wishlist + Change Password + Cost/Value refactor AI — 3 phase rút gọn AI về đúng chỗ có giá trị: bỏ SP tương tự AI/AI Recommend HomePage, thêm Hybrid Search `/tim-kiem` + Cache embedding server-side; xem cuối doc). **Phase 11 ✅ HOÀN THÀNH** — 5 bước 11A→11E xong: 57 test tự động (41 unit + 16 integration Testcontainers) pass < 45s; Docker Compose 3 container end-to-end (`docker compose up -d` truy cập `http://localhost` OK, ảnh SP hiển thị); `AuthRateLimiter` chống brute-force login/register/forgot-password; [security-audit.md](security-audit.md) verify 0 IDOR + config prod hardened; V22 seed 5 user + 5 voucher + 10 order rải qua 6 status; Newman 154 request pass in 20.8s → [newman-report.html](newman-report.html) 2.8MB; [testcases.md](testcases.md) mở rộng từ 38 → 93 case cho báo cáo. **Hotfix cùng ngày ✅ HOÀN THÀNH (user đã verify STAFF login thành công):** (1) Tách bạch session admin/customer bằng field `loginSource` — 4 file FE (`auth.ts`, `LoginPage.tsx`, `AdminLoginPage.tsx`, `AdminProtectedRoute.tsx`); (2) **Fix bug backend chính:** `LoginResponse.UserInfo` chỉ có `roles` mà **thiếu `permissions[]`** (bỏ sót từ Sprint 9G-perm, chỉ `/auth/me` trả) — thêm field `permissions: List<String>` vào record + `AuthService.toUserInfo()` collect từ `user.roles.permissions`. Trước bug không lộ vì user luôn login ADMIN (bypass permission check); STAFF login → `hasPermission('access_admin')=undefined` → AdminLoginPage tự logout. **Polish 9F round 2 (cùng ngày, commit `41e1c53`):** (a) Cleanup demo data — xoá 15 orders `ORD-DEMO/TEST/REV-*` + 5 goods_issues + 3 users `user3/4/5`; (b) AdminBrandsPage thêm cột "Logo" (header text) + "Sản phẩm" (badge count), guardrail xoá disable khi còn SP + khoá slug khi còn SP + warn realtime khi tắt isActive; (c) Banner đa slot — V23 `banners.position` (hero_carousel/sidebar_phone/sidebar_laptop), V24 `banners.image_fit`, endpoint `GET /api/banners/slot/{position}` + hook `useBannerBySlot`, admin form Select vị trí; (d) Image cropper với `react-easy-crop` — `ImageCropperDialog` kéo/zoom/xoay + canvas→JPEG blob→upload lại, auto mở sau upload banner, aspect 16:9 hero / 1:3 sidebar; (e) `CategorySection` sidebar aspect-[1/3] cứng khớp cropper, ảnh fill 100% object-cover không cắt mép. Còn **Phase 12** (báo cáo Word + slide + video demo).
 
 ---
 
@@ -495,6 +495,106 @@ Bối cảnh: (v) Dropdown `homePosition` mutually exclusive — chọn `FEATURE
 - Root cause: container `h-56 md:h-80 w-full` = aspect variable theo device (mobile ~1.67:1, desktop ~4.5:1), không khớp cropper 3:1.
 - Fix: [HomePage.tsx](../../laptopworld-web/src/pages/HomePage.tsx) container carousel từ `w-full h-56 md:h-80 object-cover` → **`w-full aspect-[3/1] object-cover`** cố định 2 device. Skeleton loading placeholder cũng update `aspect-[3/1]` tránh layout jump.
 - Trade-off: desktop container ~1440 wide → height 480px (cao hơn 320px cũ, banner đẹp hơn); mobile ~375 → height 125px (thấp hơn 224 cũ, tự nhiên vì aspect banner ngang).
+
+**Sprint tính năng khách hàng + tối ưu AI cost/value (2026-08-29) — 3 nhóm việc:**
+
+Bối cảnh: user rà thử trải nghiệm customer site trước khi vào Phase 12 báo cáo → phát hiện thiếu 3 tính năng cơ bản + đặt vấn đề "AI dùng khắp nơi có giá trị thật không, tốn token không". Session gồm:
+
+*(A) Bổ sung 3 tính năng customer thiếu:*
+- **Bỏ section Chính sách & Ưu đãi** (PromoGrid) khỏi HomePage — 4 card link tới các trang không tồn tại (`/bao-hanh`, `/doi-tra`), UX rối. Xoá cả file [PromoGrid.tsx](../../laptopworld-web/src/components/common/PromoGrid.tsx).
+- **Đổi mật khẩu customer** — thiếu tính năng cơ bản. BE: `POST /api/auth/change-password` với `{currentPassword, newPassword}`, verify BCrypt current, chặn mật khẩu mới trùng cũ, revoke toàn bộ refresh token (giống flow reset). FE: [ChangePasswordPage.tsx](../../laptopworld-web/src/pages/ChangePasswordPage.tsx) route `/tai-khoan/doi-mat-khau`, form 3 field Zod validate min 8 ký tự + xác nhận khớp + khác cũ, sau OK: toast + auto logout + redirect `/dang-nhap`.
+- **Quản lý sản phẩm yêu thích** — có Zustand store `wishlist` từ Phase 8 nhưng không có trang view. BE: `GET /api/catalog/products/by-ids?ids=1,2,3` (giữ nguyên thứ tự id, bỏ SP soft-delete). FE: hook `useProductsByIds` + [WishlistPage.tsx](../../laptopworld-web/src/pages/WishlistPage.tsx) route `/tai-khoan/yeu-thich` (protected) — grid `ProductCard` + AlertDialog "Xoá tất cả" + empty state. Thêm icon `Heart` badge count đỏ trong [Header.tsx](../../laptopworld-web/src/components/layout/Header.tsx) cạnh Cart, sidebar [AccountLayout.tsx](../../laptopworld-web/src/components/layout/AccountLayout.tsx) thêm 2 mục "Sản phẩm yêu thích" + "Đổi mật khẩu".
+
+*(B) Cache embedding server-side — mitigation token risk trước:*
+
+Rủi ro: `AiRecommendSection` gọi `useSemanticSearch` mỗi lần load HomePage/user → 300 user × 5 pageview = 1500 embed/day → chạm trần Gemini free tier + peak traffic vỡ quota.
+
+- [EmbeddingService.java](../src/main/java/com/example/LaptopWorld_project/ai/service/EmbeddingService.java) — thêm `ConcurrentHashMap<String, CacheEntry>` cache TTL **1 giờ**, max **500 entries**, key = query text lowercased trim. Chỉ cache `embedQuery` (không cache `embedDocument` vì chỉ chạy 1 lần khi index SP). Eviction: quét entry expired trước, không có thì evict random.
+- Stats `hits/misses/hitRate` qua `AtomicLong`.
+- 2 endpoint admin trong [AdminAiController.java](../src/main/java/com/example/LaptopWorld_project/ai/controller/AdminAiController.java): `GET /api/admin/ai/query-cache-stats` + `POST /api/admin/ai/query-cache/clear` — để demo hiệu quả cache trong báo cáo.
+- Không thêm dependency (không dùng Caffeine/Redis) — dataset dev/demo scale đủ. Nếu scale ≥ 2 JVM instance mới cần Redis.
+
+*(C) Cost/value refactor AI — 3 phase rút gọn AI về đúng chỗ có giá trị:*
+
+Vấn đề: user hỏi *"nếu SP liên quan vô nghĩa thì cho vào làm gì? SP tương tự AI có gì hơn SQL bracket giá không? Ưu tiên giá trị cao / chi phí thấp — nếu SQL làm được thì AI để làm gì cho tốn token?"* — đúng cost/value analysis. Thừa nhận AI đang bị dùng "cho có" ở 2 chỗ không tạo giá trị tách biệt:
+
+**Phase 1 — Rollback SP tương tự AI, nâng cấp SP liên quan bằng SQL bracket giá:**
+- **Xoá** endpoint `GET /api/catalog/products/{id}/similar` (mới thêm cùng session — lỗi thiết kế).
+- **Xoá** method `SemanticSearchService.findSimilarByProductId` + hook `useSimilarProducts` + section "Sản phẩm tương tự" trong [ProductDetailPage.tsx](../../laptopworld-web/src/pages/ProductDetailPage.tsx).
+- **Nâng cấp** `ProductService.findRelated`: cũ "cùng category, sort views DESC" (tạp nham — xem MacBook 45M ra Acer 12M) → mới **bracket giá ±30% với fallback nới ±60% → ±100% → bỏ bracket** khi dataset thưa. Query JPQL mới `findRelatedInPriceBracket` sort `ABS(price - base) ASC, views DESC` + `findRelatedByCategory` fallback trong [ProductRepository.java](../src/main/java/com/example/LaptopWorld_project/catalog/repository/ProductRepository.java).
+- **Kết quả:** SP liên quan giờ ra cùng phân khúc giá (MacBook Pro → MacBook Air/ZenBook Pro/ThinkPad X1, không còn Acer Aspire 12M) với **0 token AI**, code 10 dòng SQL.
+
+**Phase 2 — Bỏ AI Recommend HomePage, thay SQL "SP xem gần nhất → related":**
+- [AiRecommendSection.tsx](../../laptopworld-web/src/components/common/AiRecommendSection.tsx) viết lại: đọc `id` (không phải `name`) từ `lw_last_product` localStorage → gọi `useRelatedProducts(id, 5)` (đã bracket giá Phase 1) → **0 token**. Fallback `useProducts({sort:'views,desc', size:5})` khi chưa xem SP nào.
+- Đổi tiêu đề *"Gợi ý riêng cho bạn — chọn bởi AI"* → **"Có thể bạn quan tâm"** (mô tả nguồn: *"dựa trên sản phẩm bạn vừa xem"* hoặc *"sản phẩm nổi bật"*). Bỏ badge `%match`. Giữ icon Sparkles để UI đỡ nhạt.
+- **Kết quả token tiết kiệm:** 300 user × 5 pageview = 1500 embed/day → **0 call** cho HomePage. Toàn bộ budget dành cho hybrid search (`/tim-kiem`) + chatbot RAG/Agent.
+
+**Phase 3 — Hybrid Search `/tim-kiem` (AI đúng chỗ):**
+
+Đây là chỗ AI thực sự có giá trị tách biệt với SQL và chatbot: SQL không tách được ngữ nghĩa "cho lập trình web", chatbot không hỗ trợ filter đa chiều + xem grid so kèo.
+
+- Backend `SemanticSearchService.hybridSearch(q, categoryId, brandId, minPrice, maxPrice, limit)`:
+  - **Case A (không có q)**: SQL thuần qua `ProductSpecifications` + sort views. 0 token.
+  - **Case B (có q)**: SQL prefilter (cap 200 SP) → embed q (dùng cache Phase B) → vector rerank trong tập đã prefilter bằng `NamedParameterJdbcTemplate` với `WHERE p.id IN (:ids) ORDER BY pe.embedding <=> (:vec)::vector`.
+  - Resolve category cha → gom hết sub-cat id (nhất quán các endpoint khác).
+- Endpoint `GET /api/catalog/search/hybrid?q=&categoryId=&brandId=&minPrice=&maxPrice=&limit=` — tất cả param optional.
+- FE [SearchPage.tsx](../../laptopworld-web/src/pages/SearchPage.tsx) viết lại toàn bộ (bỏ layout semantic+text cũ):
+  - Ô "Mô tả nhu cầu" trên đầu (icon Sparkles, Enter submit, nút X clear).
+  - Sidebar filter cứng: Danh mục / Thương hiệu / Khoảng giá VND (validate, format nghìn) — reuse pattern CategoryListPage.
+  - Grid 2-4 cột responsive; badge `X% khớp` chỉ khi có semantic query (không giả bộ AI khi thực ra là SQL).
+  - URL state cho bookmark/share/back-forward; empty state có hint ví dụ.
+  - Nhãn kết quả tự đổi: *"xếp theo mức khớp AI"* (có q) vs *"xếp theo lượt xem"* (không q).
+- Hook `useHybridSearch(filter)` trong [useSearch.ts](../../laptopworld-web/src/hooks/api/useSearch.ts) — enabled khi có bất kỳ input nào.
+
+**Verify E2E qua curl (cùng ngày):**
+
+| Case | Query | Kết quả top-5 | Similarity | Token |
+|---|---|---|---|---|
+| **1** | Chỉ SQL (`minPrice=15M&maxPrice=25M`) | 5 SP trong khoảng giá, sort views | 0.000 | **0** |
+| **2** | Chỉ semantic `"laptop cho sinh viên học lập trình"` | MSI Delta 15 (19M), MSI GF65 (17M), MSI Pulse GL66 (22M), **HP Omen (33M)**, MSI Prestige (23M) | 0.688 - 0.673 | 1 |
+| **3 (KEY DEMO)** | Hybrid: `q` + `maxPrice=20M` | MSI Delta 15 (19M), MSI GF65 (17M), MSI Modern (20M), Dell Inspiron 17 (19M), Dell Inspiron 15 (20M) — **tất cả ≤ 20M** | 0.688 - 0.664 | 1 (cache hit) |
+
+**Case 3 vs Case 2 chứng minh giá trị hybrid:** cùng query "laptop cho sinh viên học lập trình", Case 2 (thuần semantic) trả HP Omen 33M vi phạm constraint "dưới 20 triệu"; Case 3 (hybrid) đảm bảo 100% ≤ 20M nhờ SQL prefilter + vẫn rerank theo ngữ nghĩa.
+
+**Cache hit rate đo thực:** sau 6 request test → `hits=4, misses=2, hitRate=0.667` (67%) — với dataset dev nhỏ đã hit 2/3, production traffic sẽ cao hơn.
+
+**AI trong dự án sau session này còn đúng 3 chỗ:**
+1. **Hybrid Search `/tim-kiem`** (mới) — AI + SQL chia sức lao động rõ ràng.
+2. **Chatbot RAG + Agent 5 tools** — điểm nhấn đồ án, không thay được bằng SQL.
+3. **Cache embedding** — hỗ trợ 2 cái trên tiết kiệm token.
+
+Nguyên tắc rút ra cho báo cáo: **cost/value analysis > công nghệ hào nhoáng**. AI chỉ dùng khi SQL không làm được (semantic query, hội thoại tự nhiên) — không dùng "cho có" ở SP tương tự / SP recommend HomePage.
+
+*(D) 4 follow-up UX sau khi user rà thử trải nghiệm thực tế:*
+
+**D1. Nav item "Tư vấn AI" trong Header** — user chỉ ra `/tim-kiem` không có lối vào rõ ràng ngoài ô search Header (dễ nhầm với tìm theo tên SP). Thêm button gradient primary→fuchsia với icon Sparkles + chữ **"Tư vấn AI"** giữa MegaMenu và ô search trong [Header.tsx](../../laptopworld-web/src/components/layout/Header.tsx), click dẫn tới `/tim-kiem`. Tooltip hover giải thích ngắn *"Tìm sản phẩm bằng mô tả nhu cầu — kết hợp bộ lọc và AI"*. Ô search cũ (SearchSuggest) giữ nguyên vai trò tìm theo tên SP; Enter vẫn dẫn `/tim-kiem?q=X`.
+
+**D2. Message chatbot khi Gemini quota hết** — user báo *"Đã đạt giới hạn quota API. Vui lòng thử lại sau."* là raw technical message không thân thiện + không cho user lối thoát. Sửa `GeminiClient.cleanGeminiError()` 4 nhánh error:
+- **429/RESOURCE_EXHAUSTED**: *"Trợ lý AI đang tạm nghỉ do đạt giới hạn truy vấn trong ngày. Trong lúc chờ, bạn có thể dùng "Tư vấn AI" ở đầu trang để tìm sản phẩm bằng bộ lọc + mô tả nhu cầu, hoặc duyệt các danh mục ở menu."*
+- **503/UNAVAILABLE**: thêm gợi ý dùng "Tư vấn AI" fallback.
+- **401/403**: giấu chi tiết technical, đổi thành *"Trợ lý AI tạm thời chưa sẵn sàng. Vui lòng liên hệ CSKH nếu cần hỗ trợ gấp."*
+- Fallback null: *"Trợ lý AI đang bận, vui lòng thử lại sau ít phút."*
+
+**D3. Spec filter cho Hybrid Search** — user báo *"chọn Laptop + Asus + RAM 8GB thì hybrid không lọc được, phải vào chatbot à?"* — đúng: sidebar hybrid chỉ có Danh mục/Thương hiệu/Giá, thiếu Thông số kỹ thuật. Fix:
+- Backend `SemanticSearchService.hybridSearch(...)` thêm param `Map<String, List<String>> specs` — truyền thẳng vào `ProductSpecifications.withFilter` (đã support từ trước). Controller nhận `MultiValueMap<String, String> allParams` để extract `spec.<key>=value` — cùng pattern `ProductController.search` (nhất quán 2 endpoint).
+- FE hook `useHybridSearch` filter thêm `specs?: Record<string, string[]>`, encode `spec.<key>=v` lặp nhiều lần qua `URLSearchParams`.
+- [SearchPage.tsx](../../laptopworld-web/src/pages/SearchPage.tsx) sidebar thêm section **"Thông số kỹ thuật"** dùng `useSpecValues(categoryId)` — chỉ hiển thị khi user đã chọn Danh mục (endpoint đã có sẵn từ Sprint spec filter). Copy `SpecAccordion` component từ CategoryListPage — checkbox multi-select với count, auto mở khi có value chọn.
+- Verify curl: `?categoryId=2&brandId=8&spec.ram=8GB` → trả 10 SP ASUS laptop RAM 8GB chính xác.
+
+**D4. Redesign sidebar SearchPage — user báo giao diện lọc không rõ đang chọn cái nào + thiếu loading indicator:**
+- **Component `RadioOption`** mới — dot indicator visible + background `primary/10` + text primary + font-medium khi selected. Thay button text plain trước đây (chỉ đổi màu chữ mờ) → user nhìn thấy ngay lựa chọn hiện tại. Sub-category dùng `indent` (pl-6) thay prefix `— ` để phân biệt cha con logic hơn.
+- **Component `FilterChip`** mới — chip active filter với X remove riêng lẻ. Row "Đang lọc:" trên đầu grid area tổng hợp mọi filter: `["chạy AutoCAD" ×] [Danh mục: Laptop ×] [Thương hiệu: Asus ×] [Giá: 0 — 20tr ×] [RAM: 8GB ×]`. Click X trên chip → xoá filter đó, giữ nguyên các filter khác. Chip semantic query có tone primary, chip filter cứng viền plain.
+- **Sticky "Bộ lọc" header** đầu sidebar — icon Filter primary + chữ "Bộ lọc" + **spinner Loader2 xoay** khi `isFetching && !isLoading` (phản hồi visual khi user vừa click filter và đang chờ backend) + nút **"× Xoá tất cả"** màu destructive rõ ràng (chỉ hiện khi có filter active). Grid có `opacity-70` khi refetching.
+- **Card header Danh mục/Thương hiệu** hiện **tên đang chọn ở góc phải** — user thấy state ngay cả khi cuộn xa.
+- **Nút "Xoá" nhỏ cạnh "Áp dụng"** trong khối Khoảng giá — reset giá riêng lẻ mà không phải xoá cả cụm filter.
+
+**Kịch bản user thật sau D1-D4:**
+1. Chị Lan mở LaptopWorld → thấy button **✨ Tư vấn AI** gradient nổi bật trên Header → click.
+2. Vào `/tim-kiem` → sidebar filter có radio button rõ ràng, click Laptop → thấy dot đen + background xanh + chip "Danh mục: Laptop" xuất hiện trên grid.
+3. Chọn Asus + tick "RAM 8GB" ở accordion Thông số → grid ra 10 ASUS laptop RAM 8GB, sidebar hiện spinner khi đang fetch, chip row tổng hợp: `[Danh mục: Laptop ×] [Thương hiệu: Asus ×] [RAM: 8GB ×]`.
+4. Muốn bỏ Asus → click X trên chip Asus → chỉ Asus bị xoá, các filter khác giữ nguyên.
+5. Muốn xem gợi ý ngữ nghĩa → gõ *"chạy AutoCAD"* vào ô Mô tả nhu cầu → grid rerank theo AI, badge % xuất hiện trên card.
+6. Nếu chị Lan hỏi chatbot mà gặp quota exhausted → thông báo dẫn chị quay lại "Tư vấn AI" → chị không cụt hứng.
 
 ### Phase 12 — Báo cáo Word + slide + video demo ⚪
 

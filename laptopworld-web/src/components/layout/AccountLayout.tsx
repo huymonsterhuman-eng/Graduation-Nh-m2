@@ -1,13 +1,15 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { Card } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { User, MapPin, Package, Ticket } from 'lucide-react'
+import { User, MapPin, Package, Ticket, Heart, KeyRound } from 'lucide-react'
 
 const links = [
   { to: '/tai-khoan', label: 'Thông tin cá nhân', icon: User, end: true },
   { to: '/tai-khoan/dia-chi', label: 'Sổ địa chỉ', icon: MapPin },
   { to: '/tai-khoan/don-hang', label: 'Đơn hàng của tôi', icon: Package },
+  { to: '/tai-khoan/yeu-thich', label: 'Sản phẩm yêu thích', icon: Heart },
   { to: '/tai-khoan/voucher', label: 'Voucher của tôi', icon: Ticket },
+  { to: '/tai-khoan/doi-mat-khau', label: 'Đổi mật khẩu', icon: KeyRound },
 ]
 
 export function AccountLayout() {

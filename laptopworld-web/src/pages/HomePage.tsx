@@ -7,7 +7,6 @@ import { FlashSaleBlock } from '@/components/common/FlashSaleBlock'
 import { CategorySection } from '@/components/common/CategorySection'
 import { AccessoriesSection } from '@/components/common/AccessoriesSection'
 import { AiRecommendSection } from '@/components/common/AiRecommendSection'
-import { PromoGrid } from '@/components/common/PromoGrid'
 import { CollectionsSection } from '@/components/common/CollectionsSection'
 import { TestimonialSection } from '@/components/common/TestimonialSection'
 import { useBanners, useBannerBySlot } from '@/hooks/api/useBanners'
@@ -112,9 +111,6 @@ export function HomePage() {
 
       {/* Gợi ý AI */}
       <AiRecommendSection />
-
-      {/* Promo grid 2x2 */}
-      <PromoGrid />
 
       {/* Blog + Testimonial */}
       {posts && posts.content.length > 0 && (

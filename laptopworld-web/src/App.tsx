@@ -25,6 +25,8 @@ import { AddressBookPage } from '@/pages/AddressBookPage'
 import { OrdersPage } from '@/pages/OrdersPage'
 import { OrderDetailPage } from '@/pages/OrderDetailPage'
 import { MyVouchersPage } from '@/pages/MyVouchersPage'
+import { WishlistPage } from '@/pages/WishlistPage'
+import { ChangePasswordPage } from '@/pages/ChangePasswordPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { LoginPage } from '@/pages/auth/LoginPage'
 import { RegisterPage } from '@/pages/auth/RegisterPage'
@@ -132,6 +134,8 @@ function App() {
               <Route path="don-hang" element={<OrdersPage />} />
               <Route path="don-hang/:code" element={<OrderDetailPage />} />
               <Route path="voucher" element={<MyVouchersPage />} />
+              <Route path="yeu-thich" element={<WishlistPage />} />
+              <Route path="doi-mat-khau" element={<ChangePasswordPage />} />
             </Route>
 
             <Route path="*" element={<NotFoundPage />} />

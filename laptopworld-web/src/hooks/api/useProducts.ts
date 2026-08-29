@@ -59,6 +59,26 @@ export function useProductBySlug(slug: string | undefined) {
   })
 }
 
+/**
+ * Lấy nhiều sản phẩm theo danh sách id — dùng cho trang yêu thích (wishlist
+ * lưu id trong localStorage). Server bỏ qua SP đã soft-delete và giữ nguyên
+ * thứ tự id truyền vào.
+ */
+export function useProductsByIds(ids: number[]) {
+  const sortedKey = [...ids].sort((a, b) => a - b).join(',')
+  return useQuery({
+    queryKey: ['products-by-ids', sortedKey],
+    enabled: ids.length > 0,
+    queryFn: async () => {
+      const { data } = await api.get<ApiResponse<ProductListItem[]>>(
+        '/catalog/products/by-ids',
+        { params: { ids: ids.join(',') } }
+      )
+      return data.data!
+    },
+  })
+}
+
 export function useRelatedProducts(productId: number | undefined, limit = 8) {
   return useQuery({
     queryKey: ['related-products', productId, limit],

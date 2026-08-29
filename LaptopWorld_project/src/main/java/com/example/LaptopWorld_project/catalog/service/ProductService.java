@@ -157,21 +157,67 @@ public class ProductService {
                 .withRating(reviewService.getRatingSummary(product.getId()));
     }
 
+    /**
+     * Lấy danh sách SP theo list id — dùng cho trang wishlist (frontend lưu id trong localStorage).
+     * Bỏ qua SP đã soft-delete (do @SQLRestriction). Kết quả giữ đúng thứ tự id đã truyền.
+     */
+    @Transactional(readOnly = true)
+    public List<ProductListItemDto> findByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+        List<Product> products = productRepository.findAllById(ids);
+        // Giữ nguyên thứ tự truyền vào (findAllById không đảm bảo)
+        Map<Long, Product> byId = new java.util.HashMap<>();
+        for (Product p : products) byId.put(p.getId(), p);
+        List<Product> ordered = new ArrayList<>();
+        for (Long id : ids) {
+            Product p = byId.get(id);
+            if (p != null) ordered.add(p);
+        }
+        return enrichWithRatings(ordered);
+    }
+
+    /**
+     * SP liên quan: cùng category + trong bracket giá ±30%, sort theo gần giá nhất trước.
+     * Fallback tự nới bracket (±60%, ±100%) rồi bỏ hẳn bracket khi dataset thưa.
+     *
+     * Lý do bracket: user xem 1 laptop cao cấp 45 triệu thì "liên quan" phải là laptop
+     * cùng phân khúc, không phải laptop văn phòng 12 triệu (dù cùng category).
+     */
     @Transactional(readOnly = true)
     public List<ProductListItemDto> findRelated(Long productId, int limit) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
         if (product.getCategory() == null) return List.of();
 
-        var pageable = PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "views"));
-        var spec = ProductSpecifications.withFilter(null,
-                                                    List.of(product.getCategory().getId()),
-                                                    null, null, null, true);
-        Page<Product> page = productRepository.findAll(spec, pageable);
-        List<Product> filtered = page.getContent().stream()
-                .filter(p -> !p.getId().equals(productId))
-                .toList();
-        return enrichWithRatings(filtered);
+        Long categoryId = product.getCategory().getId();
+        java.math.BigDecimal basePrice = product.getPrice();
+        if (basePrice == null || basePrice.signum() <= 0) {
+            // Không có giá tham chiếu → fallback ngay về SQL cũ (cùng category, sort views)
+            var pageable = PageRequest.of(0, limit);
+            List<Product> list = productRepository.findRelatedByCategory(categoryId, productId, pageable);
+            return enrichWithRatings(list);
+        }
+
+        // Bracket tăng dần: ±30% → ±60% → ±100% → bỏ bracket
+        double[] brackets = { 0.30, 0.60, 1.00 };
+        List<Product> result = List.of();
+        for (double b : brackets) {
+            java.math.BigDecimal minPrice = basePrice.multiply(java.math.BigDecimal.valueOf(1 - b));
+            java.math.BigDecimal maxPrice = basePrice.multiply(java.math.BigDecimal.valueOf(1 + b));
+            var pageable = PageRequest.of(0, limit);
+            result = productRepository.findRelatedInPriceBracket(
+                    categoryId, productId, basePrice, minPrice, maxPrice, pageable);
+            // Chấp nhận khi có ít nhất half limit — tránh trả 1-2 SP đơn côi
+            if (result.size() >= Math.max(4, limit / 2)) break;
+        }
+
+        // Fallback cuối: nếu cả 3 bracket đều thiếu, dùng cùng-category sort views như cũ
+        if (result.size() < Math.max(4, limit / 2)) {
+            var pageable = PageRequest.of(0, limit);
+            result = productRepository.findRelatedByCategory(categoryId, productId, pageable);
+        }
+
+        return enrichWithRatings(result);
     }
 
     // ==================== ADMIN CRUD ====================

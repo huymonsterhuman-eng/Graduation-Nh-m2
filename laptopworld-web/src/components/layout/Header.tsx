@@ -1,8 +1,9 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth'
 import { useCart } from '@/hooks/api/useCart'
+import { useWishlistStore } from '@/stores/wishlist'
 import { Button } from '@/components/ui/button'
-import { ShoppingCart, User, LogOut, Moon, Sun } from 'lucide-react'
+import { ShoppingCart, User, LogOut, Moon, Sun, Heart, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { TopBar } from './TopBar'
 import { MegaMenu } from './MegaMenu'
@@ -15,6 +16,7 @@ export function Header() {
   const navigate = useNavigate()
   const { data: cart } = useCart()
   const cartCount = cart?.itemCount ?? 0
+  const wishlistCount = useWishlistStore((s) => s.ids.length)
   const theme = useThemeStore((s) => s.theme)
   const toggleTheme = useThemeStore((s) => s.toggle)
 
@@ -37,6 +39,16 @@ export function Header() {
           <MegaMenu />
         </div>
 
+        {/* CTA vào Hybrid Search — nổi bật để user biết có tính năng tư vấn AI, không nhầm với ô search theo tên SP */}
+        <Link
+          to="/tim-kiem"
+          className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-gradient-to-r from-primary/10 to-fuchsia-500/10 px-3 py-1.5 text-xs font-medium text-primary transition hover:from-primary/20 hover:to-fuchsia-500/20 hover:shadow-sm shrink-0"
+          title="Tìm sản phẩm bằng mô tả nhu cầu — kết hợp bộ lọc và AI"
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          <span>Tư vấn AI</span>
+        </Link>
+
         <div className="hidden md:flex flex-1 max-w-xl">
           <SearchSuggest />
         </div>
@@ -45,6 +57,16 @@ export function Header() {
           <Button variant="ghost" size="icon" onClick={toggleTheme}
             aria-label={theme === 'dark' ? 'Chuyển sáng' : 'Chuyển tối'}>
             {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </Button>
+          <Button variant="ghost" size="icon" asChild className="relative">
+            <Link to="/tai-khoan/yeu-thich" aria-label="Sản phẩm yêu thích">
+              <Heart className="h-5 w-5" />
+              {wishlistCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-medium text-white">
+                  {wishlistCount > 99 ? '99+' : wishlistCount}
+                </span>
+              )}
+            </Link>
           </Button>
           <Button variant="ghost" size="icon" asChild className="relative">
             <Link to="/gio-hang" aria-label="Giỏ hàng">

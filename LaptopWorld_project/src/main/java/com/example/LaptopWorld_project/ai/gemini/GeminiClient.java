@@ -128,15 +128,18 @@ public class GeminiClient {
      * Rút gọn Gemini error message: bỏ JSON wrapper để user thấy sạch.
      */
     private static String cleanGeminiError(String raw) {
-        if (raw == null) return "Lỗi không xác định từ Gemini API";
+        if (raw == null) return "Trợ lý AI đang bận, vui lòng thử lại sau ít phút.";
         if (raw.contains("503") || raw.contains("UNAVAILABLE") || raw.contains("high demand")) {
-            return "Máy chủ AI đang quá tải, vui lòng thử lại sau ít phút.";
+            return "Trợ lý AI đang quá tải do lượng truy cập cao. Bạn có thể thử lại sau vài phút, "
+                    + "hoặc dùng \"Tư vấn AI\" ở đầu trang để tìm sản phẩm bằng bộ lọc + mô tả nhu cầu.";
         }
         if (raw.contains("429") || raw.contains("RESOURCE_EXHAUSTED")) {
-            return "Đã đạt giới hạn quota API. Vui lòng thử lại sau.";
+            return "Trợ lý AI đang tạm nghỉ do đạt giới hạn truy vấn trong ngày. "
+                    + "Trong lúc chờ, bạn có thể dùng \"Tư vấn AI\" ở đầu trang để tìm sản phẩm "
+                    + "bằng bộ lọc + mô tả nhu cầu, hoặc duyệt các danh mục ở menu.";
         }
         if (raw.contains("401") || raw.contains("403") || raw.contains("PERMISSION_DENIED")) {
-            return "API key Gemini không hợp lệ.";
+            return "Trợ lý AI tạm thời chưa sẵn sàng. Vui lòng liên hệ CSKH nếu cần hỗ trợ gấp.";
         }
         int idx = raw.indexOf("\"message\"");
         if (idx > 0) {

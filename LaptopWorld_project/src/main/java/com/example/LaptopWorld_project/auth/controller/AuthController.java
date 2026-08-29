@@ -82,6 +82,14 @@ public class AuthController {
         return ApiResponse.ok(authService.me(principal.getUsername()));
     }
 
+    @Operation(summary = "Đổi mật khẩu (khách hàng đã đăng nhập)")
+    @PostMapping("/change-password")
+    public ApiResponse<Void> changePassword(@Valid @RequestBody ChangePasswordRequest req,
+                                            @AuthenticationPrincipal UserPrincipal principal) {
+        authService.changePassword(principal.getUsername(), req.currentPassword(), req.newPassword());
+        return ApiResponse.message("Đổi mật khẩu thành công. Vui lòng đăng nhập lại.");
+    }
+
     @Operation(summary = "Yêu cầu đặt lại mật khẩu — gửi email reset")
     @PostMapping("/forgot-password")
     public ApiResponse<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest req,

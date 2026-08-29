@@ -1,5 +1,6 @@
 package com.example.LaptopWorld_project.ai.controller;
 
+import com.example.LaptopWorld_project.ai.service.EmbeddingService;
 import com.example.LaptopWorld_project.ai.service.ProductEmbeddingService;
 import com.example.LaptopWorld_project.common.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -18,6 +19,7 @@ import java.util.Map;
 public class AdminAiController {
 
     private final ProductEmbeddingService productEmbeddingService;
+    private final EmbeddingService embeddingService;
 
     @Operation(summary = "Stats embedding: bao nhiêu SP đã embed / còn pending")
     @GetMapping("/embedding-stats")
@@ -38,5 +40,18 @@ public class AdminAiController {
     public ApiResponse<Map<String, Object>> embedOne(@org.springframework.web.bind.annotation.PathVariable Long id) {
         return ApiResponse.ok("Đã re-embed sản phẩm",
                 productEmbeddingService.embedOne(id));
+    }
+
+    @Operation(summary = "Thống kê cache embedding query (hit/miss/hit rate) — dùng để đo hiệu quả cache")
+    @GetMapping("/query-cache-stats")
+    public ApiResponse<EmbeddingService.CacheStats> queryCacheStats() {
+        return ApiResponse.ok(embeddingService.getStats());
+    }
+
+    @Operation(summary = "Xoá cache embedding query — buộc mọi query gọi lại Gemini")
+    @PostMapping("/query-cache/clear")
+    public ApiResponse<Void> clearQueryCache() {
+        embeddingService.clearCache();
+        return ApiResponse.message("Đã xoá cache embedding query");
     }
 }

@@ -57,6 +57,40 @@ public interface ProductRepository extends JpaRepository<Product, Long>,
     @Query("UPDATE Product p SET p.views = p.views + 1 WHERE p.id = :id")
     int incrementViews(@Param("id") Long id);
 
+    /**
+     * SP liên quan trong bracket giá — cùng category, giá trong [minPrice, maxPrice],
+     * sort theo khoảng cách giá tuyệt đối tăng dần (gần giá nhất trước), tie-break bằng views.
+     * Loại trừ chính SP đang xem. @SQLRestriction lọc soft-delete tự động.
+     */
+    @Query("""
+            SELECT p FROM Product p
+            WHERE p.category.id = :categoryId
+              AND p.id <> :excludeId
+              AND p.isActive = true
+              AND p.price BETWEEN :minPrice AND :maxPrice
+            ORDER BY ABS(p.price - :basePrice) ASC, p.views DESC
+            """)
+    java.util.List<Product> findRelatedInPriceBracket(
+            @Param("categoryId") Long categoryId,
+            @Param("excludeId") Long excludeId,
+            @Param("basePrice") java.math.BigDecimal basePrice,
+            @Param("minPrice") java.math.BigDecimal minPrice,
+            @Param("maxPrice") java.math.BigDecimal maxPrice,
+            org.springframework.data.domain.Pageable pageable);
+
+    /** Fallback: SP cùng category không giới hạn giá, sort views — khi bracket thiếu SP. */
+    @Query("""
+            SELECT p FROM Product p
+            WHERE p.category.id = :categoryId
+              AND p.id <> :excludeId
+              AND p.isActive = true
+            ORDER BY p.views DESC
+            """)
+    java.util.List<Product> findRelatedByCategory(
+            @Param("categoryId") Long categoryId,
+            @Param("excludeId") Long excludeId,
+            org.springframework.data.domain.Pageable pageable);
+
     /** Load toàn bộ SP kèm brand + category eager — dùng cho embedding job. */
     @EntityGraph(attributePaths = {"brand", "category"})
     @Query("SELECT p FROM Product p")

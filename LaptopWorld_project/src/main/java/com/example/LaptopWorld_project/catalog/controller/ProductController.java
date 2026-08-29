@@ -85,6 +85,12 @@ public class ProductController {
         return ApiResponse.ok(productService.findBySlugAndIncrementViews(slug));
     }
 
+    @Operation(summary = "Lấy nhiều sản phẩm theo danh sách id (dùng cho trang yêu thích)")
+    @GetMapping("/api/catalog/products/by-ids")
+    public ApiResponse<List<ProductListItemDto>> byIds(@RequestParam List<Long> ids) {
+        return ApiResponse.ok(productService.findByIds(ids));
+    }
+
     @Operation(summary = "Sản phẩm liên quan (cùng category, top view)")
     @GetMapping("/api/catalog/products/{id}/related")
     public ApiResponse<List<ProductListItemDto>> related(

@@ -365,7 +365,7 @@ export function ProductDetailPage() {
         </Tabs>
       </div>
 
-      {/* Related */}
+      {/* Related — SQL: cùng category + bracket giá ±30% (fallback nới rộng nếu thiếu SP) */}
       {related && related.length > 0 && (
         <section className="mt-10">
           <h2 className="text-xl font-bold mb-4">Sản phẩm liên quan</h2>
