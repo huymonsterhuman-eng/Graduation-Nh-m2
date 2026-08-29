@@ -53,7 +53,7 @@ export interface VoucherInput {
   type: VoucherType
   discountAmount: number
   minOrderValue?: number
-  maxDiscount?: number
+  maxDiscount?: number | null
   startedAt?: string | null   // ISO
   expiresAt?: string | null
   usageLimit?: number | null

@@ -18,7 +18,7 @@ import {
   type VoucherInput,
 } from '@/hooks/api/useVouchers'
 import type { Voucher, VoucherType } from '@/types/api'
-import { formatPrice } from '@/lib/format'
+import { formatPrice, formatNumberInput, parseNumberInput } from '@/lib/format'
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
 
 /** ISO string ↔ giá trị của <input type="datetime-local"> (không có TZ). */
@@ -75,7 +75,8 @@ function toPayload(f: FormState): VoucherInput {
     type: f.type,
     discountAmount: f.discountAmount,
     minOrderValue: f.minOrderValue || 0,
-    maxDiscount: f.type === 'percent' ? (f.maxDiscount || 0) : 0,
+    // 0 = không cap → gửi null để BE hiểu là "không giới hạn" (nếu gửi 0, BE cap discount về 0đ)
+    maxDiscount: f.type === 'percent' && f.maxDiscount > 0 ? f.maxDiscount : null,
     startedAt: localInputToIso(f.startedAtLocal),
     expiresAt: localInputToIso(f.expiresAtLocal),
     usageLimit: f.usageLimit === '' ? null : Number(f.usageLimit),
@@ -113,6 +114,7 @@ export function AdminVouchersPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Voucher | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm())
+  const typeLocked = !!editing && editing.usedCount > 0
   const [keyword, setKeyword] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('ALL')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
@@ -325,6 +327,12 @@ export function AdminVouchersPage() {
         loading={create.isPending || update.isPending}
         size="lg"
       >
+        {typeLocked && (
+          <div className="mb-4 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300">
+            <b>Voucher đã có {editing?.usedCount} đơn sử dụng.</b> Loại giảm đã bị khóa để tránh sai lệch giá.
+            Nếu cần đổi công thức, tạo voucher mới với mã khác và tắt voucher này.
+          </div>
+        )}
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="code">Mã voucher *</Label>
@@ -348,41 +356,67 @@ export function AdminVouchersPage() {
 
           <div className="space-y-2">
             <Label htmlFor="type">Loại giảm *</Label>
-            <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as VoucherType })}>
+            <Select
+              value={form.type}
+              onValueChange={(v) => setForm({ ...form, type: v as VoucherType })}
+              disabled={typeLocked}
+            >
               <SelectTrigger id="type"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="fixed">Giảm cố định (VNĐ)</SelectItem>
                 <SelectItem value="percent">Giảm phần trăm (%)</SelectItem>
               </SelectContent>
             </Select>
+            {typeLocked && (
+              <p className="text-xs text-muted-foreground">
+                Không thể đổi loại giảm vì voucher đã có đơn sử dụng.
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="discountAmount">
               Giá trị giảm * {form.type === 'percent' ? '(%)' : '(VNĐ)'}
             </Label>
-            <Input
-              id="discountAmount" type="number" inputMode="numeric"
-              min={form.type === 'percent' ? 1 : 1000}
-              max={form.type === 'percent' ? 100 : undefined}
-              step={form.type === 'percent' ? 1 : 1000}
-              value={form.discountAmount === 0 ? '' : form.discountAmount}
-              onChange={(e) => setForm({
-                ...form,
-                discountAmount: parseIntSafe(e.target.value, form.type === 'percent' ? 100 : undefined),
-              })}
-              placeholder={form.type === 'percent' ? 'VD: 10' : 'VD: 50000'}
-            />
-            {form.type === 'percent' && (
+            {form.type === 'percent' ? (
+              <Input
+                id="discountAmount" type="number" inputMode="numeric"
+                min={1} max={100} step={1}
+                value={form.discountAmount === 0 ? '' : form.discountAmount}
+                onChange={(e) => setForm({
+                  ...form,
+                  discountAmount: parseIntSafe(e.target.value, 100),
+                })}
+                placeholder="VD: 10"
+              />
+            ) : (
+              <Input
+                id="discountAmount" type="text" inputMode="numeric"
+                value={formatNumberInput(form.discountAmount || null)}
+                onChange={(e) => setForm({
+                  ...form,
+                  discountAmount: parseNumberInput(e.target.value) ?? 0,
+                })}
+                placeholder="VD: 50.000"
+              />
+            )}
+            {form.type === 'percent' ? (
               <p className="text-xs text-muted-foreground">Nhập số nguyên từ 1 đến 100.</p>
+            ) : (
+              form.discountAmount > 0 && (
+                <p className="text-xs text-muted-foreground">≈ {formatPrice(form.discountAmount)}</p>
+              )
             )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="minOrderValue">Đơn hàng tối thiểu (VNĐ)</Label>
             <Input
-              id="minOrderValue" type="number" inputMode="numeric" min={0} step={1000}
-              value={form.minOrderValue === 0 ? '' : form.minOrderValue}
-              onChange={(e) => setForm({ ...form, minOrderValue: parseIntSafe(e.target.value) })}
+              id="minOrderValue" type="text" inputMode="numeric"
+              value={formatNumberInput(form.minOrderValue || null)}
+              onChange={(e) => setForm({
+                ...form,
+                minOrderValue: parseNumberInput(e.target.value) ?? 0,
+              })}
               placeholder="Để trống hoặc 0 = không giới hạn"
             />
             <p className="text-xs text-muted-foreground">
@@ -393,9 +427,12 @@ export function AdminVouchersPage() {
             <div className="space-y-2">
               <Label htmlFor="maxDiscount">Giảm tối đa (VNĐ)</Label>
               <Input
-                id="maxDiscount" type="number" inputMode="numeric" min={0} step={1000}
-                value={form.maxDiscount === 0 ? '' : form.maxDiscount}
-                onChange={(e) => setForm({ ...form, maxDiscount: parseIntSafe(e.target.value) })}
+                id="maxDiscount" type="text" inputMode="numeric"
+                value={formatNumberInput(form.maxDiscount || null)}
+                onChange={(e) => setForm({
+                  ...form,
+                  maxDiscount: parseNumberInput(e.target.value) ?? 0,
+                })}
                 placeholder="Để trống = không cap"
               />
               <p className="text-xs text-muted-foreground">

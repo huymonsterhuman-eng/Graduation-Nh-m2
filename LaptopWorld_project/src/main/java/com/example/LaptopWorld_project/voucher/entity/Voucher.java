@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 
 @Getter
@@ -76,7 +77,7 @@ public class Voucher extends BaseEntity {
         BigDecimal discount = switch (type) {
             case fixed   -> discountAmount;
             case percent -> orderSubtotal.multiply(discountAmount)
-                                          .divide(BigDecimal.valueOf(100));
+                                          .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
         };
         if (maxDiscount != null && discount.compareTo(maxDiscount) > 0) {
             discount = maxDiscount;

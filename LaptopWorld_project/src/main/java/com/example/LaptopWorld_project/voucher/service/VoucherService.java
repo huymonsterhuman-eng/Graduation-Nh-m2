@@ -62,6 +62,10 @@ public class VoucherService {
         if (!v.getCode().equals(req.code()) && voucherRepository.existsByCode(req.code())) {
             throw new BusinessException("VOUCHER_CODE_TAKEN", "Mã voucher đã tồn tại");
         }
+        if (v.getUsedCount() > 0 && req.type() != v.getType()) {
+            throw new BusinessException("VOUCHER_TYPE_LOCKED",
+                    "Không thể đổi loại giảm vì voucher đã có đơn sử dụng");
+        }
         v.setCode(req.code());
         apply(v, req);
         return voucherMapper.toDto(voucherRepository.save(v));
@@ -160,7 +164,9 @@ public class VoucherService {
         v.setType(req.type());
         v.setDiscountAmount(req.discountAmount());
         v.setMinOrderValue(req.minOrderValue() != null ? req.minOrderValue() : BigDecimal.ZERO);
-        v.setMaxDiscount(req.maxDiscount());
+        // maxDiscount ≤ 0 = "không cap" → chuyển về null, tránh calculateDiscount cap discount về 0
+        BigDecimal maxDisc = req.maxDiscount();
+        v.setMaxDiscount(maxDisc != null && maxDisc.compareTo(BigDecimal.ZERO) > 0 ? maxDisc : null);
         v.setStartedAt(req.startedAt());
         v.setExpiresAt(req.expiresAt());
         v.setUsageLimit(req.usageLimit());

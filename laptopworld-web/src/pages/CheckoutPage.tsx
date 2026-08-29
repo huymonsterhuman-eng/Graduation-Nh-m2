@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useCart } from '@/hooks/api/useCart'
 import { useAddresses } from '@/hooks/api/useAddresses'
 import { useCheckout } from '@/hooks/api/useOrders'
-import { checkVoucherApi } from '@/hooks/api/useVouchers'
+import { checkVoucherApi, useMyVouchers } from '@/hooks/api/useVouchers'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -34,6 +34,7 @@ export function CheckoutPage() {
   // stockAvailable đã trừ reserved ở BE (CartService.toItemDto), nên phản ánh thực tế.
   const { data: cart, isLoading: loadingCart, refetch: refetchCart } = useCart({ refetchInterval: 8000 })
   const { data: addresses, isLoading: loadingAddr } = useAddresses()
+  const { data: myVouchers } = useMyVouchers()
   const checkout = useCheckout()
 
   const [addressId, setAddressId] = useState<number | undefined>()
@@ -332,6 +333,46 @@ export function CheckoutPage() {
                   </Button>
                 )}
               </div>
+
+              {/* Gợi ý voucher đã lưu — bấm để áp nhanh */}
+              {myVouchers && myVouchers.length > 0 && !voucherResult?.valid && (
+                <div className="space-y-1 pt-1">
+                  <p className="text-[11px] text-muted-foreground">Voucher đã lưu — bấm để áp:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {myVouchers.map((v) => {
+                      const eligible = cart.subtotal >= (v.minOrderValue ?? 0)
+                      return (
+                        <button
+                          key={v.id}
+                          type="button"
+                          disabled={!eligible}
+                          onClick={async () => {
+                            try {
+                              setVoucherCode(v.code)
+                              const r = await checkVoucherApi(v.code, cart.subtotal)
+                              setVoucherResult(r)
+                              if (r.valid) toast.success(r.message)
+                              else toast.error(r.message)
+                            } catch { toast.error('Không kiểm tra được voucher') }
+                          }}
+                          className={`rounded-md border px-2 py-1 text-xs font-mono transition ${
+                            eligible
+                              ? 'border-primary/40 text-primary hover:bg-primary/10 cursor-pointer'
+                              : 'border-muted-foreground/20 text-muted-foreground/60 cursor-not-allowed'
+                          }`}
+                          title={
+                            eligible
+                              ? `${v.name}${v.type === 'percent' ? ` — giảm ${v.discountAmount}%` : ` — giảm ${formatPrice(v.discountAmount)}`}`
+                              : `Đơn cần đạt tối thiểu ${formatPrice(v.minOrderValue ?? 0)} để dùng mã này`
+                          }
+                        >
+                          {v.code}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             <Separator />
