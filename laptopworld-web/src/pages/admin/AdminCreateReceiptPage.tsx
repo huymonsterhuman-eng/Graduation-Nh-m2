@@ -237,7 +237,7 @@ export function AdminCreateReceiptPage() {
           >
             <div className="space-y-1 text-xs text-muted-foreground">
               <p>• Sau khi lưu, phiếu ở trạng thái <b>chờ duyệt</b> — kho <b>chưa</b> cộng.</p>
-              <p>• Admin vào chi tiết phiếu → <b>Duyệt</b> để cộng kho + kích hoạt lô cho FIFO.</p>
+              <p>• Admin vào chi tiết phiếu → <b>Duyệt</b> để cộng kho + đưa lô vào bán (theo thứ tự cũ nhất trước).</p>
               <p>• Nếu nhập nhầm khi chưa duyệt → bấm <b>Hủy phiếu</b>. Đã duyệt rồi thì tạo <b>Phiếu xuất thủ công</b> để cân đối.</p>
               <p>• <b>Giá nhập ≤ Giá bán</b> — chặn để tránh lỗ. Gợi ý giá: 85% giá bán.</p>
             </div>

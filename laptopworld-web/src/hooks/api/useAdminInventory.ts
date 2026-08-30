@@ -70,12 +70,18 @@ export function useDeletePartner() {
 export interface AdminReceiptsFilter {
   page?: number
   size?: number
+  from?: string  // yyyy-MM-dd
+  to?: string
+  supplierId?: number
 }
 
 export function useAdminReceipts(f: AdminReceiptsFilter) {
   const params = new URLSearchParams()
   params.set('page', String(f.page ?? 0))
   params.set('size', String(f.size ?? 20))
+  if (f.from) params.set('from', f.from)
+  if (f.to) params.set('to', f.to)
+  if (f.supplierId) params.set('supplierId', String(f.supplierId))
   return useQuery({
     queryKey: ['admin', 'receipts', f],
     placeholderData: keepPreviousData,
@@ -167,12 +173,16 @@ export interface AdminIssuesFilter {
   type?: 'auto' | 'manual'
   page?: number
   size?: number
+  from?: string  // yyyy-MM-dd
+  to?: string
 }
 
 export function useAdminIssues(f: AdminIssuesFilter) {
   const params = new URLSearchParams()
   if (f.status && f.status !== 'ALL') params.set('status', f.status)
   if (f.type) params.set('type', f.type)
+  if (f.from) params.set('from', f.from)
+  if (f.to) params.set('to', f.to)
   params.set('page', String(f.page ?? 0))
   params.set('size', String(f.size ?? 20))
 
@@ -313,27 +323,3 @@ export function useProductSearchLite(keyword: string, enabled: boolean) {
   })
 }
 
-// ================== Reserved-stock audit ==================
-
-export interface ReservedStockMismatch {
-  productId: number
-  productName: string
-  actualReserved: number
-  expectedReserved: number
-  deltaAbsolute: number
-}
-
-/**
- * Chạy tay audit reserved_stock — mutation vì server-side có side effect log.
- * Trả list SP đang lệch giữa `products.reserved_stock` và số reserved thực đếm từ đơn active.
- */
-export function useRunReservedStockAudit() {
-  return useMutation({
-    mutationFn: async () => {
-      const { data } = await api.post<ApiResponse<ReservedStockMismatch[]>>(
-        '/admin/inventory/reserved-stock-audit'
-      )
-      return { rows: data.data ?? [], message: data.message ?? '' }
-    },
-  })
-}

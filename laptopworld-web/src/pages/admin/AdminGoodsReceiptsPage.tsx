@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader'
 import { AdminTable, type AdminColumn } from '@/components/admin/common/AdminTable'
+import { DateRangeFilter, type DateRange } from '@/components/admin/common/DateRangeFilter'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
@@ -47,9 +48,13 @@ function ReceiptStatusBadge({ status }: { status: GoodsReceiptStatus }) {
 export function AdminGoodsReceiptsPage() {
   const [page, setPage] = useState(0)
   const [statusFilter, setStatusFilter] = useState<GoodsReceiptStatus | 'ALL'>('ALL')
+  const [dateRange, setDateRange] = useState<DateRange>({})
   const [detailId, setDetailId] = useState<number | null>(null)
 
-  const { data: paged, isLoading } = useAdminReceipts({ page, size: 20 })
+  const { data: paged, isLoading } = useAdminReceipts({
+    page, size: 20,
+    from: dateRange.from, to: dateRange.to,
+  })
 
   const filteredContent = (paged?.content ?? []).filter(
     (r) => statusFilter === 'ALL' || r.status === statusFilter
@@ -117,15 +122,21 @@ export function AdminGoodsReceiptsPage() {
         isLoading={isLoading}
         emptyMessage={statusFilter === 'ALL' ? 'Chưa có phiếu nhập nào' : `Không có phiếu nào ở trạng thái "${RECEIPT_STATUS_META[statusFilter as GoodsReceiptStatus]?.label}"`}
         toolbar={
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as GoodsReceiptStatus | 'ALL')}>
-            <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">Tất cả trạng thái ({paged?.content.length ?? 0})</SelectItem>
-              <SelectItem value="pending">Chờ duyệt ({statusCounts.pending ?? 0})</SelectItem>
-              <SelectItem value="completed">Đã duyệt ({statusCounts.completed ?? 0})</SelectItem>
-              <SelectItem value="cancelled">Đã hủy ({statusCounts.cancelled ?? 0})</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as GoodsReceiptStatus | 'ALL')}>
+              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Tất cả trạng thái ({paged?.content.length ?? 0})</SelectItem>
+                <SelectItem value="pending">Chờ duyệt ({statusCounts.pending ?? 0})</SelectItem>
+                <SelectItem value="completed">Đã duyệt ({statusCounts.completed ?? 0})</SelectItem>
+                <SelectItem value="cancelled">Đã hủy ({statusCounts.cancelled ?? 0})</SelectItem>
+              </SelectContent>
+            </Select>
+            <DateRangeFilter
+              value={dateRange}
+              onChange={(v) => { setDateRange(v); setPage(0) }}
+            />
+          </div>
         }
       />
 

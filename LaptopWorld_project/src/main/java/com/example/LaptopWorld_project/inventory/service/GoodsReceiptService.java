@@ -44,9 +44,23 @@ public class GoodsReceiptService {
 
     @Transactional(readOnly = true)
     public PagedResponse<GoodsReceiptListItemDto> list(Long supplierId, Pageable pageable) {
-        Page<GoodsReceipt> page = supplierId != null
-                ? goodsReceiptRepository.findBySupplierIdOrderByCreatedAtDesc(supplierId, pageable)
-                : goodsReceiptRepository.findAllByOrderByCreatedAtDesc(pageable);
+        return list(supplierId, null, null, pageable);
+    }
+
+    /** Overload có filter khoảng ngày createdAt [from 00:00, to 24:00). */
+    @Transactional(readOnly = true)
+    public PagedResponse<GoodsReceiptListItemDto> list(Long supplierId,
+                                                       OffsetDateTime from,
+                                                       OffsetDateTime to,
+                                                       Pageable pageable) {
+        org.springframework.data.jpa.domain.Specification<GoodsReceipt> spec = (root, query, cb) -> {
+            java.util.List<jakarta.persistence.criteria.Predicate> preds = new java.util.ArrayList<>();
+            if (supplierId != null) preds.add(cb.equal(root.get("supplier").get("id"), supplierId));
+            if (from != null) preds.add(cb.greaterThanOrEqualTo(root.get("createdAt"), from));
+            if (to != null)   preds.add(cb.lessThan(root.get("createdAt"), to));
+            return cb.and(preds.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+        Page<GoodsReceipt> page = goodsReceiptRepository.findAll(spec, pageable);
         return PagedResponse.from(page, goodsReceiptMapper::toListItem);
     }
 

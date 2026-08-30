@@ -11,7 +11,6 @@ import com.example.LaptopWorld_project.inventory.dto.ProductStockSummaryDto;
 import com.example.LaptopWorld_project.inventory.dto.RejectIssueRequest;
 import com.example.LaptopWorld_project.inventory.entity.GoodsIssue;
 import com.example.LaptopWorld_project.inventory.entity.GoodsIssueStatus;
-import com.example.LaptopWorld_project.catalog.service.ReservedStockAuditService;
 import com.example.LaptopWorld_project.inventory.service.InventoryQueryService;
 import com.example.LaptopWorld_project.inventory.service.InventoryService;
 import com.example.LaptopWorld_project.user.entity.User;
@@ -35,7 +34,6 @@ public class AdminInventoryController {
     private final InventoryQueryService inventoryQueryService;
     private final InventoryService inventoryService;
     private final UserRepository userRepository;
-    private final ReservedStockAuditService reservedStockAuditService;
 
     @Operation(summary = "Xem tồn kho theo lô của 1 sản phẩm (FIFO, cũ nhất trước)")
     @GetMapping("/inventory/products/{productId}/batches")
@@ -44,15 +42,19 @@ public class AdminInventoryController {
         return ApiResponse.ok(inventoryQueryService.getProductBatches(productId));
     }
 
-    @Operation(summary = "Danh sách phiếu xuất kho — filter theo status + type")
+    @Operation(summary = "Danh sách phiếu xuất kho — filter theo status + type + khoảng ngày")
     @GetMapping("/goods-issues")
     @PreAuthorize("hasRole('ADMIN') or hasAuthority('manage_goods_issue')")
     public ApiResponse<PagedResponse<GoodsIssueListItemDto>> listIssues(
             @RequestParam(required = false) GoodsIssueStatus status,
             @RequestParam(required = false) com.example.LaptopWorld_project.inventory.entity.GoodsIssueType type,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to,
             @PageableDefault(size = 20, sort = "createdAt",
                     direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
-        return ApiResponse.ok(inventoryQueryService.listIssues(status, type, pageable));
+        java.time.OffsetDateTime fromTs = from != null ? from.atStartOfDay().atOffset(java.time.ZoneOffset.UTC) : null;
+        java.time.OffsetDateTime toTs   = to   != null ? to.plusDays(1).atStartOfDay().atOffset(java.time.ZoneOffset.UTC) : null;
+        return ApiResponse.ok(inventoryQueryService.listIssues(status, type, fromTs, toTs, pageable));
     }
 
     @Operation(summary = "Đếm phiếu xuất theo type + status — dùng cho tabs")
@@ -107,16 +109,5 @@ public class AdminInventoryController {
         GoodsIssue saved = inventoryService.createManualPendingIssue(req, author);
         return ApiResponse.ok("Đã tạo phiếu xuất manual (chờ duyệt)",
                 inventoryQueryService.findIssueById(saved.getId()));
-    }
-
-    @Operation(summary = "Kiểm toán reserved_stock — đối chiếu con số hệ thống vs đếm lại từ đơn active")
-    @PostMapping("/inventory/reserved-stock-audit")
-    @PreAuthorize("hasRole('ADMIN') or hasAuthority('view_inventory')")
-    public ApiResponse<java.util.List<ReservedStockAuditService.MismatchRow>> runReservedStockAudit() {
-        var rows = reservedStockAuditService.runAudit();
-        String msg = rows.isEmpty()
-                ? "Kho sạch — không có SP nào lệch reserved_stock"
-                : "Phát hiện " + rows.size() + " SP lệch reserved_stock";
-        return ApiResponse.ok(msg, rows);
     }
 }

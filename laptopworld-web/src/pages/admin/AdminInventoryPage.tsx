@@ -96,7 +96,7 @@ export function AdminInventoryPage() {
         title="Tồn kho"
         icon={Boxes}
         sprint="Sprint 9E"
-        description="Xem tồn kho theo từng SP + chi tiết các lô nhập theo FIFO."
+        description="Xem tồn kho theo từng SP + chi tiết các lô nhập (bán theo thứ tự cũ nhất trước)."
       />
 
       <Card className="grid gap-3 p-3 md:grid-cols-[1fr_200px_200px]">
@@ -207,7 +207,7 @@ function BatchesDialog({
                     <div>
                       <div className="font-mono text-sm">{b.goodsReceiptCode || '—'}</div>
                       <div className="text-xs text-muted-foreground">
-                        NCC: {b.supplierName || '—'} · {i === 0 && <span className="font-semibold text-primary">FIFO next</span>}
+                        NCC: {b.supplierName || '—'} · {i === 0 && <span className="font-semibold text-primary">Xuất trước</span>}
                       </div>
                     </div>
                     <span className="text-right text-sm">{b.quantity}</span>

@@ -13,9 +13,14 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 @Tag(name = "Goods Receipt (Admin)", description = "Phiếu nhập kho — chỉ admin/staff")
 @RestController
@@ -26,12 +31,17 @@ public class AdminGoodsReceiptController {
 
     private final GoodsReceiptService goodsReceiptService;
 
-    @Operation(summary = "Danh sách phiếu nhập (mới nhất trước)")
+    @Operation(summary = "Danh sách phiếu nhập (mới nhất trước) — filter theo NCC + khoảng ngày")
     @GetMapping
     public ApiResponse<PagedResponse<GoodsReceiptListItemDto>> list(
             @RequestParam(required = false) Long supplierId,
-            @PageableDefault(size = 20) Pageable pageable) {
-        return ApiResponse.ok(goodsReceiptService.list(supplierId, pageable));
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @PageableDefault(size = 20, sort = "createdAt",
+                    direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
+        OffsetDateTime fromTs = from != null ? from.atStartOfDay().atOffset(ZoneOffset.UTC) : null;
+        OffsetDateTime toTs   = to   != null ? to.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC) : null;
+        return ApiResponse.ok(goodsReceiptService.list(supplierId, fromTs, toTs, pageable));
     }
 
     @Operation(summary = "Chi tiết phiếu nhập")

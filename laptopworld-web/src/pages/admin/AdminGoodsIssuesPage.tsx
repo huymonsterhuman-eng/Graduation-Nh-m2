@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader'
 import { AdminTable, type AdminColumn } from '@/components/admin/common/AdminTable'
+import { DateRangeFilter, type DateRange } from '@/components/admin/common/DateRangeFilter'
 import { IssueStatusBadge, IssueTypeBadge } from '@/components/admin/common/OrderStatusBadge'
 import {
   useAdminIssues, useAdminIssueDetail, useApproveIssue, useRejectIssue,
@@ -38,6 +39,7 @@ const STATUS_LABEL: Record<GoodsIssueStatus | 'ALL', string> = {
 export function AdminGoodsIssuesPage() {
   const [typeTab, setTypeTab] = useState<'auto' | 'manual'>('auto')
   const [status, setStatus] = useState<GoodsIssueStatus | 'ALL'>('ALL')
+  const [dateRange, setDateRange] = useState<DateRange>({})
   const [page, setPage] = useState(0)
   const [detailId, setDetailId] = useState<number | null>(null)
   const [approveId, setApproveId] = useState<number | null>(null)
@@ -45,7 +47,10 @@ export function AdminGoodsIssuesPage() {
   const [rejectId, setRejectId] = useState<number | null>(null)
   const [rejectReason, setRejectReason] = useState('')
 
-  const { data: paged, isLoading } = useAdminIssues({ status, type: typeTab, page, size: 20 })
+  const { data: paged, isLoading } = useAdminIssues({
+    status, type: typeTab, page, size: 20,
+    from: dateRange.from, to: dateRange.to,
+  })
   const { data: counts } = useIssueCounts()
   const { data: shippingPartners } = usePartners('shipping_provider')
   const approve = useApproveIssue()
@@ -63,7 +68,7 @@ export function AdminGoodsIssuesPage() {
         id: approveId,
         shippingPartnerId: isAuto ? Number(approvePartnerId) : undefined,
       })
-      toast.success(isAuto ? 'Đã bàn giao ĐVVC — kho đã trừ + tracking sinh' : 'Đã duyệt — kho đã trừ')
+      toast.success(isAuto ? 'Đã bàn giao đơn vị vận chuyển — kho đã trừ, mã vận đơn đã sinh' : 'Đã duyệt — kho đã trừ')
       setApproveId(null)
       setApprovePartnerId('')
     } catch (e) { toast.error((e as Error).message) }
@@ -86,12 +91,12 @@ export function AdminGoodsIssuesPage() {
       key: 'code', header: 'Mã phiếu',
       cell: (i) => <span className="font-mono text-sm font-medium">{i.code}</span>,
     },
-    {
+    ...(typeTab === 'auto' ? [{
       key: 'order', header: 'Đơn hàng',
-      cell: (i) => i.orderCode
+      cell: (i: GoodsIssueListItem) => i.orderCode
         ? <span className="font-mono text-xs">{i.orderCode}</span>
         : <span className="text-xs text-muted-foreground">—</span>,
-    },
+    } as AdminColumn<GoodsIssueListItem>] : []),
     { key: 'type', header: 'Loại', cell: (i) => <IssueTypeBadge type={i.type} /> },
     { key: 'status', header: 'Trạng thái', cell: (i) => <IssueStatusBadge status={i.status} /> },
     {
@@ -99,7 +104,7 @@ export function AdminGoodsIssuesPage() {
       cell: (i) => <span className="text-sm text-muted-foreground">{i.authorName || '—'}</span>,
     },
     {
-      key: 'cogs', header: 'Giá trị (COGS)', align: 'right',
+      key: 'cogs', header: 'Giá vốn', align: 'right',
       cell: (i) => i.totalCogs > 0
         ? <span className="font-semibold">{formatPrice(i.totalCogs)}</span>
         : <span className="text-xs text-muted-foreground">—</span>,
@@ -119,7 +124,7 @@ export function AdminGoodsIssuesPage() {
             <>
               <Button variant="ghost" size="icon"
                 onClick={() => setApproveId(i.id)}
-                title={i.type === 'auto' ? 'Bàn giao ĐVVC' : 'Duyệt phiếu'}>
+                title={i.type === 'auto' ? 'Bàn giao đơn vị vận chuyển' : 'Duyệt phiếu'}>
                 {i.type === 'auto'
                   ? <Truck className="h-4 w-4 text-primary" />
                   : <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
@@ -141,7 +146,7 @@ export function AdminGoodsIssuesPage() {
         title="Phiếu xuất kho"
         icon={PackageMinus}
         sprint="Sprint 9E"
-        description={`Auto (từ đơn hàng): ${counts?.auto ?? 0} · Manual (thủ công): ${counts?.manual ?? 0}`}
+        description={`Tự động (từ đơn hàng): ${counts?.auto ?? 0} · Thủ công: ${counts?.manual ?? 0}`}
         actions={
           <Button asChild>
             <Link to="/admin/phieu-xuat/moi">
@@ -197,14 +202,20 @@ export function AdminGoodsIssuesPage() {
         isLoading={isLoading}
         emptyMessage="Chưa có phiếu xuất nào"
         toolbar={
-          <Select value={status} onValueChange={(v) => { setStatus(v as GoodsIssueStatus | 'ALL'); setPage(0) }}>
-            <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {(Object.keys(STATUS_LABEL) as Array<GoodsIssueStatus | 'ALL'>).map((s) => (
-                <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={status} onValueChange={(v) => { setStatus(v as GoodsIssueStatus | 'ALL'); setPage(0) }}>
+              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {(Object.keys(STATUS_LABEL) as Array<GoodsIssueStatus | 'ALL'>).map((s) => (
+                  <SelectItem key={s} value={s}>{STATUS_LABEL[s]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <DateRangeFilter
+              value={dateRange}
+              onChange={(v) => { setDateRange(v); setPage(0) }}
+            />
+          </div>
         }
       />
 
@@ -231,8 +242,8 @@ export function AdminGoodsIssuesPage() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {approvingIssue?.type === 'auto'
-                ? <>Chọn ĐVVC → hệ thống tự sinh mã vận đơn → kho trừ tồn theo FIFO → đơn <b>{approvingIssue.orderCode}</b> tự sang <i>Đang giao hàng</i>. <b>Không thể hoàn tác.</b></>
-                : 'Kho sẽ trừ tồn theo FIFO. Không thể hoàn tác.'}
+                ? <>Chọn đơn vị vận chuyển → hệ thống tự sinh mã vận đơn → kho trừ tồn (lấy từ lô nhập cũ nhất trước) → đơn <b>{approvingIssue.orderCode}</b> tự sang <i>Đang giao hàng</i>. <b>Không thể hoàn tác.</b></>
+                : 'Kho sẽ trừ tồn, lấy từ lô nhập cũ nhất trước. Thao tác không thể hoàn tác.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -241,7 +252,7 @@ export function AdminGoodsIssuesPage() {
               <Label htmlFor="shipPartner">Đơn vị vận chuyển *</Label>
               <Select value={approvePartnerId} onValueChange={setApprovePartnerId}>
                 <SelectTrigger id="shipPartner">
-                  <SelectValue placeholder="Chọn ĐVVC..." />
+                  <SelectValue placeholder="Chọn đơn vị vận chuyển..." />
                 </SelectTrigger>
                 <SelectContent>
                   {(shippingPartners ?? []).filter((p) => p.isActive).map((p) => (
@@ -253,7 +264,8 @@ export function AdminGoodsIssuesPage() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Mã vận đơn tự sinh: <span className="font-mono">{'{MÃ_ĐVVC}{YYMMDD}{5 số ngẫu nhiên}'}</span>
+                Mã vận đơn tự sinh — ví dụ: <span className="font-mono">GHN26083012345</span>
+                {' '}(mã đơn vị vận chuyển + ngày + 5 số ngẫu nhiên).
               </p>
             </div>
           )}
@@ -276,7 +288,7 @@ export function AdminGoodsIssuesPage() {
             <AlertDialogDescription>
               {rejectingIssue?.type === 'auto'
                 ? <>Phiếu <b>{rejectingIssue.code}</b> sẽ bị hủy, đơn <b>{rejectingIssue.orderCode}</b> quay về <i>Đã xác nhận</i>. Kho không đổi.</>
-                : <>Phiếu manual <b>{rejectingIssue?.code}</b> sẽ bị hủy. Kho không đổi.</>}
+                : <>Phiếu thủ công <b>{rejectingIssue?.code}</b> sẽ bị hủy. Kho không đổi.</>}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2">
@@ -327,7 +339,7 @@ function IssueDetailDialog({ id, onClose }: { id: number; onClose: () => void })
               <div><span className="text-muted-foreground">Người thực hiện: </span>{issue.authorName || '—'}</div>
               <div><span className="text-muted-foreground">Ngày: </span>{formatDateTime(issue.createdAt)}</div>
               {issue.totalCogs > 0 && (
-                <div><span className="text-muted-foreground">Tổng COGS: </span><b>{formatPrice(issue.totalCogs)}</b></div>
+                <div><span className="text-muted-foreground">Tổng giá vốn: </span><b>{formatPrice(issue.totalCogs)}</b></div>
               )}
               {issue.note && <div className="md:col-span-2"><span className="text-muted-foreground">Ghi chú: </span>{issue.note}</div>}
             </div>

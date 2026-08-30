@@ -180,9 +180,9 @@ export function AdminCreateIssuePage() {
           >
             <div className="space-y-1 text-xs text-muted-foreground">
               <p>• Phiếu tạo ra ở trạng thái <b>Chờ duyệt</b>.</p>
-              <p>• Kho sẽ approve → FIFO chạy → trừ tồn theo lô cũ nhất.</p>
-              <p>• Nếu reject → phiếu hủy, tồn kho <b>không đổi</b>.</p>
-              <p>• Xuất manual <b>không</b> gắn với đơn hàng nào — dùng cho quà tặng, chuyển kho...</p>
+              <p>• Kho duyệt → trừ tồn theo lô nhập cũ nhất trước.</p>
+              <p>• Nếu từ chối → phiếu bị hủy, tồn kho <b>không đổi</b>.</p>
+              <p>• Xuất thủ công <b>không</b> gắn với đơn hàng nào — dùng cho quà tặng, chuyển kho...</p>
             </div>
           </AdminSection>
         </div>

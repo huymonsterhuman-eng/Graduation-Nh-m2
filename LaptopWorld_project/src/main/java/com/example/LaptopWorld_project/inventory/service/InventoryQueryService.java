@@ -64,18 +64,22 @@ public class InventoryQueryService {
 
     @Transactional(readOnly = true)
     public PagedResponse<GoodsIssueListItemDto> listIssues(GoodsIssueStatus status, Pageable pageable) {
-        return listIssues(status, null, pageable);
+        return listIssues(status, null, null, null, pageable);
     }
 
-    /** Overload thêm filter type (auto/manual). */
+    /** Overload thêm filter type (auto/manual) + khoảng ngày createdAt. */
     @Transactional(readOnly = true)
     public PagedResponse<GoodsIssueListItemDto> listIssues(GoodsIssueStatus status,
                                                            com.example.LaptopWorld_project.inventory.entity.GoodsIssueType type,
+                                                           java.time.OffsetDateTime from,
+                                                           java.time.OffsetDateTime to,
                                                            Pageable pageable) {
         org.springframework.data.jpa.domain.Specification<GoodsIssue> spec = (root, query, cb) -> {
             java.util.List<jakarta.persistence.criteria.Predicate> preds = new java.util.ArrayList<>();
             if (status != null) preds.add(cb.equal(root.get("status"), status));
             if (type != null) preds.add(cb.equal(root.get("type"), type));
+            if (from != null) preds.add(cb.greaterThanOrEqualTo(root.get("createdAt"), from));
+            if (to != null)   preds.add(cb.lessThan(root.get("createdAt"), to));
             return cb.and(preds.toArray(new jakarta.persistence.criteria.Predicate[0]));
         };
         Page<GoodsIssue> page = goodsIssueRepository.findAll(spec, pageable);

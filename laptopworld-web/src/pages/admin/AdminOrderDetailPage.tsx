@@ -274,7 +274,7 @@ export function AdminOrderDetailPage() {
               )}
               {order.status === 'preparing' && (
                 <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-700 dark:text-amber-400">
-                  Đang chờ kho duyệt phiếu xuất. Vào <Link to="/admin/phieu-xuat" className="font-semibold underline">Phiếu xuất</Link> để approve.
+                  Đang chờ kho duyệt phiếu xuất. Vào <Link to="/admin/phieu-xuat" className="font-semibold underline">Phiếu xuất</Link> để duyệt.
                 </div>
               )}
               {order.status === 'shipping' && (
@@ -325,7 +325,7 @@ export function AdminOrderDetailPage() {
             <AlertDialogTitle>Chuyển kho chuẩn bị?</AlertDialogTitle>
             <AlertDialogDescription>
               Chuyển sang <i>Đang chuẩn bị</i> — hệ thống sẽ tự sinh 1 <b>Phiếu xuất kho</b> ở trạng thái
-              <i> Chờ duyệt</i>. Kho phải approve phiếu này (chọn ĐVVC → tự sinh mã vận đơn) thì
+              <i> Chờ duyệt</i>. Kho phải duyệt phiếu này (chọn đơn vị vận chuyển → tự sinh mã vận đơn) thì
               đơn mới sang <i>Đang giao hàng</i>.
             </AlertDialogDescription>
           </AlertDialogHeader>

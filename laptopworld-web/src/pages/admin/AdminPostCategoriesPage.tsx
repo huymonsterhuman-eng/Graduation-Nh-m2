@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react'
-import { FolderTree, Plus, Pencil, Trash2, Search } from 'lucide-react'
+import { FolderTree, Plus, Pencil, Trash2, Search, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { AdminPageHeader } from '@/components/admin/common/AdminPageHeader'
 import { AdminTable, type AdminColumn } from '@/components/admin/common/AdminTable'
 import { FormDialog } from '@/components/admin/common/FormDialog'
@@ -74,6 +75,12 @@ export function AdminPostCategoriesPage() {
       cell: (c) => <Badge variant="outline" className="font-mono">{c.slug}</Badge>,
     },
     {
+      key: 'posts', header: 'Bài viết', align: 'center', className: 'w-24',
+      cell: (c) => c.postCount > 0
+        ? <Badge variant="secondary" className="gap-1"><FileText className="h-3 w-3" />{c.postCount}</Badge>
+        : <span className="text-xs text-muted-foreground">—</span>,
+    },
+    {
       key: 'description', header: 'Mô tả',
       cell: (c) => (
         <span className="line-clamp-2 text-sm text-muted-foreground">
@@ -83,22 +90,40 @@ export function AdminPostCategoriesPage() {
     },
     {
       key: 'actions', header: '', align: 'right', className: 'w-32',
-      cell: (c) => (
-        <div className="flex justify-end gap-1">
-          <Button variant="ghost" size="icon" onClick={() => openEdit(c)} title="Sửa">
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <ConfirmDialog
-            trigger={<Button variant="ghost" size="icon" title="Xóa"><Trash2 className="h-4 w-4 text-destructive" /></Button>}
-            title="Xóa danh mục bài viết?"
-            description={
-              <>Xóa <b>{c.name}</b>. Chỉ xóa được nếu chưa có bài viết nào thuộc danh mục này.</>
-            }
-            confirmLabel="Xóa"
-            onConfirm={() => handleDelete(c)}
-          />
-        </div>
-      ),
+      cell: (c) => {
+        const hasPosts = c.postCount > 0
+        return (
+          <div className="flex justify-end gap-1">
+            <Button variant="ghost" size="icon" onClick={() => openEdit(c)} title="Sửa">
+              <Pencil className="h-4 w-4" />
+            </Button>
+            {hasPosts ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span tabIndex={0}>
+                      <Button variant="ghost" size="icon" disabled title="">
+                        <Trash2 className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Còn {c.postCount} bài viết — chuyển sang danh mục khác trước khi xoá
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <ConfirmDialog
+                trigger={<Button variant="ghost" size="icon" title="Xoá"><Trash2 className="h-4 w-4 text-destructive" /></Button>}
+                title="Xoá danh mục bài viết?"
+                description={<>Xoá <b>{c.name}</b>. Không thể hoàn tác.</>}
+                confirmLabel="Xoá"
+                onConfirm={() => handleDelete(c)}
+              />
+            )}
+          </div>
+        )
+      },
     },
   ]
 

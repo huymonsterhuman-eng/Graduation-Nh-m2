@@ -7,6 +7,7 @@ public record PostCategoryDto(
         String name,
         String slug,
         String description,
+        long postCount,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {}

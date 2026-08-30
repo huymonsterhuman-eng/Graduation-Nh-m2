@@ -31,6 +31,13 @@ public interface PostRepository extends JpaRepository<Post, Long>,
     @Query("UPDATE Post p SET p.views = p.views + 1 WHERE p.id = :id")
     void incrementViews(Long id);
 
+    /** Đếm số bài viết thuộc 1 danh mục — dùng để gate xoá + hiển thị count. */
+    long countByPostCategory_Id(Long postCategoryId);
+
+    /** Bulk count theo danh mục — tránh N+1 khi hiển thị list. */
+    @Query("SELECT p.postCategory.id, COUNT(p) FROM Post p WHERE p.postCategory.id IS NOT NULL GROUP BY p.postCategory.id")
+    List<Object[]> countGroupByPostCategory();
+
     /** Spec cho public list: chỉ post đã publish và published_at đã tới. */
     static Specification<Post> publishedFilter(String keyword, Long categoryId, OffsetDateTime now) {
         return (root, query, cb) -> {

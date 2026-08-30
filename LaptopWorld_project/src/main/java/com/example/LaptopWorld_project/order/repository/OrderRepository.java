@@ -90,4 +90,12 @@ public interface OrderRepository extends JpaRepository<Order, Long>,
      * (max 10 đơn / 15 phút / user).
      */
     long countByUserIdAndCreatedAtAfter(Long userId, OffsetDateTime after);
+
+    /** Đếm đơn hàng gán 1 đơn vị vận chuyển — gate xoá Partner (shipping_provider). */
+    @Query("SELECT COUNT(o) FROM Order o WHERE o.partnerId = :partnerId")
+    long countByPartnerId(@Param("partnerId") Long partnerId);
+
+    /** Bulk count đơn theo ĐVVC — tránh N+1 khi list Partner. */
+    @Query("SELECT o.partnerId, COUNT(o) FROM Order o WHERE o.partnerId IS NOT NULL GROUP BY o.partnerId")
+    List<Object[]> countGroupByPartnerId();
 }

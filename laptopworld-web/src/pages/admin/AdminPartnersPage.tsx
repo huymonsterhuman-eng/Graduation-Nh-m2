@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react'
-import { Handshake, Plus, Pencil, Trash2, Search, Mail, Phone } from 'lucide-react'
+import { Handshake, Plus, Pencil, Trash2, Search, Mail, Phone, AlertTriangle, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
@@ -122,20 +123,41 @@ export function AdminPartnersPage() {
     },
     {
       key: 'actions', header: '', align: 'right', className: 'w-32',
-      cell: (p) => (
-        <div className="flex justify-end gap-1">
-          <Button variant="ghost" size="icon" onClick={() => openEdit(p)} title="Sửa">
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <ConfirmDialog
-            trigger={<Button variant="ghost" size="icon" title="Xóa"><Trash2 className="h-4 w-4 text-destructive" /></Button>}
-            title="Xóa đối tác?"
-            description={<>Xóa <b>{p.name}</b>. Nếu đối tác đã có phiếu nhập/đơn giao, thao tác có thể bị chặn.</>}
-            confirmLabel="Xóa"
-            onConfirm={() => handleDelete(p)}
-          />
-        </div>
-      ),
+      cell: (p) => {
+        const usage = p.type === 'supplier' ? p.receiptCount : p.orderCount
+        const usageLabel = p.type === 'supplier' ? 'phiếu nhập' : 'đơn hàng'
+        return (
+          <div className="flex justify-end gap-1">
+            <Button variant="ghost" size="icon" onClick={() => openEdit(p)} title="Sửa">
+              <Pencil className="h-4 w-4" />
+            </Button>
+            {usage > 0 ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span tabIndex={0}>
+                      <Button variant="ghost" size="icon" disabled title="">
+                        <Trash2 className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Còn {usage} {usageLabel} — tắt Hoạt động để ẩn thay vì xoá
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <ConfirmDialog
+                trigger={<Button variant="ghost" size="icon" title="Xoá"><Trash2 className="h-4 w-4 text-destructive" /></Button>}
+                title="Xoá đối tác?"
+                description={<>Xoá <b>{p.name}</b>. Không thể hoàn tác.</>}
+                confirmLabel="Xoá"
+                onConfirm={() => handleDelete(p)}
+              />
+            )}
+          </div>
+        )
+      },
     },
   ]
 
@@ -190,6 +212,13 @@ export function AdminPartnersPage() {
         loading={create.isPending || update.isPending}
         size="lg"
       >
+        {(() => {
+          const refCount = editing
+            ? (editing.type === 'supplier' ? editing.receiptCount : editing.orderCount)
+            : 0
+          const locked = !!editing && refCount > 0
+          const refLabel = editing?.type === 'supplier' ? 'phiếu nhập' : 'đơn hàng'
+          return (
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="name">Tên đối tác *</Label>
@@ -197,8 +226,10 @@ export function AdminPartnersPage() {
               onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="type">Loại *</Label>
-            <Select value={form.type}
+            <Label htmlFor="type" className="flex items-center gap-1">
+              Loại * {locked && <Lock className="h-3 w-3 text-muted-foreground" />}
+            </Label>
+            <Select value={form.type} disabled={locked}
               onValueChange={(v) => setForm({ ...form, type: v as PartnerType })}>
               <SelectTrigger id="type"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -206,18 +237,32 @@ export function AdminPartnersPage() {
                 <SelectItem value="shipping_provider">Đơn vị vận chuyển</SelectItem>
               </SelectContent>
             </Select>
+            {locked && (
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                🔒 Có {refCount} {refLabel} đang dùng — không đổi được loại để tránh phá nghiệp vụ.
+              </p>
+            )}
           </div>
           <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="code">
+            <Label htmlFor="code" className="flex items-center gap-1">
               Mã đối tác {form.type === 'shipping_provider' && '(dùng làm prefix tracking number)'}
+              {locked && <Lock className="h-3 w-3 text-muted-foreground" />}
             </Label>
-            <Input id="code" className="font-mono uppercase" maxLength={10}
+            <Input id="code" className="font-mono uppercase" maxLength={10} disabled={locked}
               placeholder="Để trống sẽ tự sinh từ tên (VD: GHN)"
               value={form.code ?? ''}
               onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} />
-            <p className="text-xs text-muted-foreground">
-              2-5 ký tự in hoa. VD: "Giao Hàng Nhanh" → auto sinh <b>GHN</b>. Sẽ dùng để sinh mã vận đơn khi kho bàn giao.
-            </p>
+            {locked ? (
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                🔒 Có {refCount} {refLabel} đang dùng mã <b>{editing?.code}</b>
+                {editing?.type === 'shipping_provider' && ' (đã in vào mã vận đơn)'}
+                {' '}— không đổi được để giữ dữ liệu cũ hợp lệ.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                2-5 ký tự in hoa. VD: "Giao Hàng Nhanh" → tự sinh <b>GHN</b>. Sẽ dùng để sinh mã vận đơn khi kho bàn giao.
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="phone">Số điện thoại</Label>
@@ -230,6 +275,8 @@ export function AdminPartnersPage() {
               onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </div>
         </div>
+        )
+        })()}
         <div className="space-y-2">
           <Label htmlFor="address">Địa chỉ</Label>
           <textarea id="address" rows={2} value={form.address ?? ''}
@@ -241,6 +288,20 @@ export function AdminPartnersPage() {
             onCheckedChange={(v) => setForm({ ...form, isActive: v })} />
           <Label htmlFor="isActive" className="cursor-pointer">Đối tác đang hoạt động</Label>
         </div>
+        {editing && !(form.isActive ?? true) && (
+          (editing.type === 'supplier' ? editing.receiptCount : editing.orderCount) > 0 && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                Đối tác này đang được dùng ở{' '}
+                {editing.type === 'supplier'
+                  ? <b>{editing.receiptCount} phiếu nhập kho</b>
+                  : <b>{editing.orderCount} đơn hàng</b>}
+                . Tắt trạng thái sẽ ẩn khỏi form tạo mới, nhưng dữ liệu cũ vẫn giữ nguyên tham chiếu.
+              </div>
+            </div>
+          )
+        )}
       </FormDialog>
     </div>
   )

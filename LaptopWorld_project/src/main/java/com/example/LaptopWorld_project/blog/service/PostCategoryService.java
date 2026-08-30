@@ -5,6 +5,7 @@ import com.example.LaptopWorld_project.blog.dto.PostCategoryRequest;
 import com.example.LaptopWorld_project.blog.entity.PostCategory;
 import com.example.LaptopWorld_project.blog.mapper.PostCategoryMapper;
 import com.example.LaptopWorld_project.blog.repository.PostCategoryRepository;
+import com.example.LaptopWorld_project.blog.repository.PostRepository;
 import com.example.LaptopWorld_project.common.exception.BusinessException;
 import com.example.LaptopWorld_project.common.exception.ResourceNotFoundException;
 import com.example.LaptopWorld_project.common.util.SlugGenerator;
@@ -13,25 +14,37 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class PostCategoryService {
 
     private final PostCategoryRepository postCategoryRepository;
+    private final PostRepository postRepository;
     private final PostCategoryMapper postCategoryMapper;
 
     @Transactional(readOnly = true)
     public List<PostCategoryDto> listAll() {
+        Map<Long, Long> countByCat = new HashMap<>();
+        for (Object[] row : postRepository.countGroupByPostCategory()) {
+            countByCat.put((Long) row[0], (Long) row[1]);
+        }
         return postCategoryRepository.findAllByOrderByNameAsc().stream()
-                .map(postCategoryMapper::toDto)
+                .map(pc -> postCategoryMapper.withCount(
+                        postCategoryMapper.toDto(pc),
+                        countByCat.getOrDefault(pc.getId(), 0L)))
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public PostCategoryDto findById(Long id) {
-        return postCategoryMapper.toDto(getByIdOrThrow(id));
+        PostCategory pc = getByIdOrThrow(id);
+        return postCategoryMapper.withCount(
+                postCategoryMapper.toDto(pc),
+                postRepository.countByPostCategory_Id(id));
     }
 
     @Transactional
@@ -63,12 +76,18 @@ public class PostCategoryService {
     @Transactional
     public void delete(Long id) {
         PostCategory pc = getByIdOrThrow(id);
+        long count = postRepository.countByPostCategory_Id(id);
+        if (count > 0) {
+            throw new BusinessException("CATEGORY_IN_USE",
+                    "Không thể xoá danh mục \"" + pc.getName() + "\" — còn " + count
+                    + " bài viết. Hãy chuyển các bài viết sang danh mục khác trước.");
+        }
         try {
             postCategoryRepository.delete(pc);
             postCategoryRepository.flush();
         } catch (DataIntegrityViolationException ex) {
             throw new BusinessException("CATEGORY_IN_USE",
-                    "Không thể xóa danh mục còn bài viết. Hãy chuyển bài viết sang danh mục khác trước.");
+                    "Không thể xoá danh mục còn bài viết. Hãy chuyển bài viết sang danh mục khác trước.");
         }
     }
 

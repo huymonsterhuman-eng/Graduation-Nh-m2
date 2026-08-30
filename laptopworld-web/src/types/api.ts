@@ -274,6 +274,7 @@ export interface PostCategory {
   name: string
   slug: string
   description?: string
+  postCount: number
   createdAt: string
   updatedAt: string
 }
@@ -464,6 +465,8 @@ export interface Partner {
   email?: string
   address?: string
   isActive: boolean
+  receiptCount: number  // Chỉ có ý nghĩa khi type=supplier
+  orderCount: number    // Chỉ có ý nghĩa khi type=shipping_provider
   createdAt?: string
   updatedAt?: string
 }
