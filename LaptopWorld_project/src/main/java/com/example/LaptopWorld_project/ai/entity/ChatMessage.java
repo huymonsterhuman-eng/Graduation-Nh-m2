@@ -59,6 +59,10 @@ public class ChatMessage {
     @Column(name = "response_time_ms")
     private Integer responseTimeMs;
 
+    /** Feedback của người dùng cho message assistant. 1 = 👍, -1 = 👎, null = chưa đánh giá. */
+    @Column(name = "feedback")
+    private Short feedback;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt = OffsetDateTime.now();
 }

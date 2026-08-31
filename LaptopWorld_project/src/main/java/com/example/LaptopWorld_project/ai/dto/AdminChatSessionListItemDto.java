@@ -11,8 +11,9 @@ public record AdminChatSessionListItemDto(
         String title,
         Long userId,
         String username,
-        boolean isGuest,
         long messageCount,
+        long likeCount,
+        long dislikeCount,
         OffsetDateTime lastActivityAt,
         OffsetDateTime createdAt
 ) {}

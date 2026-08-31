@@ -37,16 +37,20 @@ public class ChatService {
     private final UserRepository userRepository;
     private final SemanticSearchService semanticSearch;
     private final GeminiClient geminiClient;
+    private final ChatTitleService chatTitleService;
 
     // ==================== CREATE SESSION ====================
     @Transactional
     public ChatSessionDto createSession(Long userId, String title) {
-        ChatSession session = new ChatSession();
-        if (userId != null) {
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new ResourceNotFoundException("User", userId));
-            session.setUser(user);
+        if (userId == null) {
+            throw new BusinessException("LOGIN_REQUIRED",
+                    "Vui lòng đăng nhập để trò chuyện với trợ lý AI.");
         }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", userId));
+
+        ChatSession session = new ChatSession();
+        session.setUser(user);
         session.setTitle(title != null && !title.isBlank() ? title : "Cuộc trò chuyện mới");
         session.setLastActivityAt(OffsetDateTime.now());
         session = sessionRepo.save(session);
@@ -129,12 +133,18 @@ public class ChatService {
 
         // 7. Update session activity
         session.setLastActivityAt(OffsetDateTime.now());
-        // Nếu title đang default và đây là message đầu → dùng câu hỏi làm title
-        if ("Cuộc trò chuyện mới".equals(session.getTitle()) && historyAsc.isEmpty()) {
+        boolean isDefaultTitle = ChatTitleService.DEFAULT_TITLES.contains(session.getTitle());
+        boolean isFirstMessage = historyAsc.isEmpty();
+        if (isDefaultTitle && isFirstMessage) {
+            // Set title tạm — sẽ được AI đè sau vài giây.
             String t = userText.length() > 60 ? userText.substring(0, 60) + "..." : userText;
             session.setTitle(t);
         }
         sessionRepo.save(session);
+
+        if (isFirstMessage && isDefaultTitle) {
+            chatTitleService.generateTitleAsync(session.getId(), userText);
+        }
 
         // 8. Build response DTO
         List<ChatResponseDto.CitedProduct> cited = retrieved.stream()
@@ -143,19 +153,43 @@ public class ChatService {
         return new ChatResponseDto(sessionId, toMessageDto(assistantMsg), cited);
     }
 
+    // ==================== FEEDBACK ====================
+    /**
+     * Người dùng gửi 👍/👎 cho 1 message assistant.
+     * feedback: 1 = like, -1 = dislike, null = huỷ đánh giá.
+     * Chỉ owner của session (hoặc guest session) mới được đánh giá.
+     */
+    @Transactional
+    public void setFeedback(Long messageId, Long currentUserId, Short feedback) {
+        if (feedback != null && feedback != 1 && feedback != -1) {
+            throw new BusinessException("INVALID_FEEDBACK",
+                    "Giá trị đánh giá không hợp lệ (chỉ chấp nhận 1, -1 hoặc null).");
+        }
+        ChatMessage message = messageRepo.findById(messageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tin nhắn"));
+        if (message.getRole() != ChatRole.assistant) {
+            throw new BusinessException("NOT_ASSISTANT",
+                    "Chỉ có thể đánh giá câu trả lời của trợ lý AI.");
+        }
+        // Kiểm tra quyền qua session — reuse logic getOwnedSession.
+        getOwnedSession(message.getSession().getId(), currentUserId);
+        message.setFeedback(feedback);
+        messageRepo.save(message);
+    }
+
     // ==================== helpers ====================
     /**
-     * Trả về session nếu current user được phép truy cập.
-     * - Session có user: chỉ owner mới được.
-     * - Session guest (user=null): bất kỳ ai có id đều truy cập được.
-     *   (Trong đồ án chấp nhận được. Prod nên dùng UUID để chống enumeration.)
+     * Trả về session nếu current user là chủ. Chatbot chỉ cho khách đăng nhập từ V33 —
+     * mọi phiên đều có user, current user cũng bắt buộc login.
      */
     private ChatSession getOwnedSession(Long sessionId, Long currentUserId) {
+        if (currentUserId == null) {
+            throw new BusinessException("LOGIN_REQUIRED",
+                    "Vui lòng đăng nhập để trò chuyện với trợ lý AI.");
+        }
         ChatSession session = sessionRepo.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy cuộc trò chuyện"));
-        // Session có chủ + user hiện tại đã login + không khớp → mismatch (frontend clear session)
-        if (session.getUser() != null && currentUserId != null
-                && !session.getUser().getId().equals(currentUserId)) {
+        if (!session.getUser().getId().equals(currentUserId)) {
             throw new BusinessException("SESSION_MISMATCH",
                     "Cuộc trò chuyện thuộc về tài khoản khác. Vui lòng tạo cuộc trò chuyện mới.");
         }

@@ -60,6 +60,15 @@ export function useSendAgentMessage() {
   })
 }
 
+/** Đánh giá 👍/👎 câu trả lời của bot. feedback: 1 = like, -1 = dislike, null = huỷ. */
+export function useSendFeedback() {
+  return useMutation({
+    mutationFn: async ({ messageId, feedback }: { messageId: number; feedback: number | null }) => {
+      await api.post<ApiResponse<void>>(`/ai/chat/messages/${messageId}/feedback`, { feedback })
+    },
+  })
+}
+
 // LocalStorage key cho session — chat persist qua reload
 const SESSION_KEY = 'lw_chat_session_id'
 

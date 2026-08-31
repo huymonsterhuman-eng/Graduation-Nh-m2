@@ -9,7 +9,6 @@ public record AdminChatSessionDetailDto(
         Long userId,
         String username,
         String userEmail,
-        boolean isGuest,
         boolean isArchived,
         OffsetDateTime lastActivityAt,
         OffsetDateTime createdAt,

@@ -33,18 +33,18 @@ public class AdminChatSessionController {
 
     private final AdminChatSessionService adminChatSessionService;
 
-    @Operation(summary = "List chat session paginated + filter loggedIn (guest/user) + date range")
+    @Operation(summary = "List chat session paginated + filter date range + hasDislike")
     @GetMapping
     public ApiResponse<PagedResponse<AdminChatSessionListItemDto>> list(
-            @RequestParam(required = false) Boolean loggedIn,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime dateFrom,
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime dateTo,
+            @RequestParam(required = false) Boolean hasDislike,
             @PageableDefault(size = 20, sort = "lastActivityAt", direction = Sort.Direction.DESC)
             Pageable pageable) {
         Page<AdminChatSessionListItemDto> page =
-                adminChatSessionService.list(loggedIn, dateFrom, dateTo, pageable);
+                adminChatSessionService.list(dateFrom, dateTo, hasDislike, pageable);
         return ApiResponse.ok(PagedResponse.from(page));
     }
 

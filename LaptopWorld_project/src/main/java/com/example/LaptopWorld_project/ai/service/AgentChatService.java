@@ -67,6 +67,7 @@ public class AgentChatService {
     private final ChatMessageRepository messageRepo;
     private final GeminiClient geminiClient;
     private final ToolExecutor toolExecutor;
+    private final ChatTitleService chatTitleService;
 
     @Transactional
     public ChatResponseDto sendMessage(Long sessionId, Long currentUserId, String userText) {
@@ -155,11 +156,19 @@ public class AgentChatService {
 
         // 5. Update session
         session.setLastActivityAt(OffsetDateTime.now());
-        if ("Cuộc trò chuyện mới".equals(session.getTitle())) {
+        boolean isFirstMessage = messageRepo.countBySessionId(session.getId()) <= 2; // user + assistant vừa lưu
+        boolean isDefaultTitle = ChatTitleService.DEFAULT_TITLES.contains(session.getTitle());
+        if (isDefaultTitle) {
+            // Set title tạm từ 60 ký tự đầu — phòng khi Gemini fail thì admin vẫn thấy nội dung.
             String t = userText.length() > 60 ? userText.substring(0, 60) + "..." : userText;
             session.setTitle(t);
         }
         sessionRepo.save(session);
+
+        // Trigger AI sinh tiêu đề nền (chỉ ở câu hỏi đầu tiên của phiên) — sẽ đè title tạm.
+        if (isFirstMessage && isDefaultTitle) {
+            chatTitleService.generateTitleAsync(session.getId(), userText);
+        }
 
         // Cited products: không extract từ tool result — trả empty (agent tự nhắc trong text)
         return new ChatResponseDto(sessionId, toMessageDto(assistantMsg), List.of());
@@ -193,16 +202,17 @@ public class AgentChatService {
     }
 
     /**
-     * Session ownership relax:
-     * - Session của người khác không cho user khác đọc/gửi.
-     * - Session không có user (guest) → ai cũng dùng được.
-     * - Khi mismatch → throw SESSION_MISMATCH để frontend biết mà clear localStorage + tạo mới.
+     * Chỉ chủ phiên mới được đọc/gửi. Chatbot yêu cầu login từ V33.
+     * Mismatch → throw SESSION_MISMATCH để frontend clear localStorage + tạo mới.
      */
     private ChatSession getOwnedSession(Long sessionId, Long currentUserId) {
+        if (currentUserId == null) {
+            throw new BusinessException("LOGIN_REQUIRED",
+                    "Vui lòng đăng nhập để trò chuyện với trợ lý AI.");
+        }
         ChatSession session = sessionRepo.findById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy cuộc trò chuyện"));
-        if (session.getUser() != null && currentUserId != null
-                && !session.getUser().getId().equals(currentUserId)) {
+        if (!session.getUser().getId().equals(currentUserId)) {
             throw new BusinessException("SESSION_MISMATCH",
                     "Cuộc trò chuyện thuộc về tài khoản khác. Vui lòng tạo cuộc trò chuyện mới.");
         }

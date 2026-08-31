@@ -16,5 +16,6 @@ public record AdminChatMessageDto(
         Integer tokensInput,
         Integer tokensOutput,
         Integer responseTimeMs,
+        Short feedback,
         OffsetDateTime createdAt
 ) {}

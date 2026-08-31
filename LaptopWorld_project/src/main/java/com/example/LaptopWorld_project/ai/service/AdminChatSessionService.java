@@ -37,14 +37,25 @@ public class AdminChatSessionService {
     private final ChatMessageRepository chatMessageRepository;
 
     @Transactional(readOnly = true)
-    public Page<AdminChatSessionListItemDto> list(Boolean loggedIn,
-                                                  OffsetDateTime dateFrom,
+    public Page<AdminChatSessionListItemDto> list(OffsetDateTime dateFrom,
                                                   OffsetDateTime dateTo,
+                                                  Boolean hasDislike,
                                                   Pageable pageable) {
-        Specification<ChatSession> spec = buildSpec(loggedIn, dateFrom, dateTo);
+        // Nếu lọc "chỉ có 👎": load whitelist id trước, empty → trả trang rỗng.
+        List<Long> dislikeSessionIds = null;
+        if (Boolean.TRUE.equals(hasDislike)) {
+            dislikeSessionIds = chatMessageRepository.findSessionIdsWithDislike();
+            if (dislikeSessionIds.isEmpty()) {
+                return Page.empty(pageable);
+            }
+        }
+        Specification<ChatSession> spec = buildSpec(dateFrom, dateTo, dislikeSessionIds);
         Page<ChatSession> page = chatSessionRepository.findAll(spec, pageable);
         Map<Long, Long> counts = loadMessageCounts(page.getContent());
-        return page.map(s -> toListItem(s, counts.getOrDefault(s.getId(), 0L)));
+        Map<Long, long[]> feedback = loadFeedbackCounts(page.getContent());
+        return page.map(s -> toListItem(s,
+                counts.getOrDefault(s.getId(), 0L),
+                feedback.getOrDefault(s.getId(), new long[]{0L, 0L})));
     }
 
     @Transactional(readOnly = true)
@@ -53,14 +64,12 @@ public class AdminChatSessionService {
                 .orElseThrow(() -> new ResourceNotFoundException("ChatSession", id));
         List<ChatMessage> messages = chatMessageRepository.findBySessionIdOrderByCreatedAtAsc(id);
         User u = session.getUser();
-        boolean guest = u == null;
         return new AdminChatSessionDetailDto(
                 session.getId(),
                 session.getTitle(),
-                guest ? null : u.getId(),
-                guest ? null : u.getUsername(),
-                guest ? null : u.getEmail(),
-                guest,
+                u.getId(),
+                u.getUsername(),
+                u.getEmail(),
                 session.isArchived(),
                 session.getLastActivityAt(),
                 session.getCreatedAt(),
@@ -70,20 +79,14 @@ public class AdminChatSessionService {
 
     // ==================== helpers ====================
 
-    private Specification<ChatSession> buildSpec(Boolean loggedIn,
-                                                 OffsetDateTime dateFrom,
-                                                 OffsetDateTime dateTo) {
+    private Specification<ChatSession> buildSpec(OffsetDateTime dateFrom,
+                                                 OffsetDateTime dateTo,
+                                                 List<Long> onlyIds) {
         return (root, query, cb) -> {
             List<Predicate> preds = new ArrayList<>();
-            if (loggedIn != null) {
-                if (Boolean.TRUE.equals(loggedIn)) {
-                    preds.add(cb.isNotNull(root.get("user")));
-                } else {
-                    preds.add(cb.isNull(root.get("user")));
-                }
-            }
             if (dateFrom != null) preds.add(cb.greaterThanOrEqualTo(root.get("createdAt"), dateFrom));
             if (dateTo != null)   preds.add(cb.lessThanOrEqualTo(root.get("createdAt"), dateTo));
+            if (onlyIds != null)  preds.add(root.get("id").in(onlyIds));
             return preds.isEmpty() ? cb.conjunction() : cb.and(preds.toArray(new Predicate[0]));
         };
     }
@@ -97,16 +100,29 @@ public class AdminChatSessionService {
         return map;
     }
 
-    private AdminChatSessionListItemDto toListItem(ChatSession s, long messageCount) {
+    /** Bulk load số 👍 và 👎 cho danh sách session — tránh N+1. */
+    private Map<Long, long[]> loadFeedbackCounts(List<ChatSession> sessions) {
+        if (sessions.isEmpty()) return Map.of();
+        List<Long> ids = sessions.stream().map(ChatSession::getId).toList();
+        Map<Long, long[]> map = new HashMap<>();
+        chatMessageRepository.feedbackCountsBySessionIds(ids).forEach(row -> {
+            long likes = row.getLikes() == null ? 0L : row.getLikes();
+            long dislikes = row.getDislikes() == null ? 0L : row.getDislikes();
+            map.put(row.getSid(), new long[]{likes, dislikes});
+        });
+        return map;
+    }
+
+    private AdminChatSessionListItemDto toListItem(ChatSession s, long messageCount, long[] feedback) {
         User u = s.getUser();
-        boolean guest = u == null;
         return new AdminChatSessionListItemDto(
                 s.getId(),
                 s.getTitle(),
-                guest ? null : u.getId(),
-                guest ? null : u.getUsername(),
-                guest,
+                u.getId(),
+                u.getUsername(),
                 messageCount,
+                feedback[0],
+                feedback[1],
                 s.getLastActivityAt(),
                 s.getCreatedAt()
         );
@@ -121,6 +137,7 @@ public class AdminChatSessionService {
                 m.getTokensInput(),
                 m.getTokensOutput(),
                 m.getResponseTimeMs(),
+                m.getFeedback(),
                 m.getCreatedAt()
         );
     }

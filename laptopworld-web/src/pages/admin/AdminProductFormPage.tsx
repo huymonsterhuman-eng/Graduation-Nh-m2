@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Save, Sparkles, Loader2 } from 'lucide-react'
+import { ArrowLeft, Save, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,7 +16,7 @@ import { TipTapEditor } from '@/components/admin/common/TipTapEditor'
 import { MultiImageUploader } from '@/components/admin/common/MultiImageUploader'
 import { SpecFieldsInput } from '@/components/admin/common/SpecFieldsInput'
 import {
-  useAdminProductDetail, useCreateProduct, useUpdateProduct, useReembedProduct,
+  useAdminProductDetail, useCreateProduct, useUpdateProduct,
   type ProductInput, type ProductImageInput,
 } from '@/hooks/api/useAdminProducts'
 import { useAdminCategories, useAdminBrands } from '@/hooks/api/useAdminCatalog'
@@ -47,7 +47,6 @@ export function AdminProductFormPage() {
 
   const create = useCreateProduct()
   const update = useUpdateProduct()
-  const reembed = useReembedProduct()
 
   const [form, setForm] = useState<FormState>(emptyForm())
 
@@ -174,13 +173,6 @@ export function AdminProductFormPage() {
     }
   }
 
-  const handleReembed = async () => {
-    if (!productId) return
-    try {
-      const r = await reembed.mutateAsync(productId)
-      toast.success(`Re-embed thành công (${r?.durationMs}ms, ${r?.dimensions}d)`)
-    } catch (e) { toast.error((e as Error).message) }
-  }
 
   if (isEdit && isLoading) {
     return <div className="grid place-items-center py-20 text-sm text-muted-foreground">Đang tải...</div>
@@ -196,14 +188,12 @@ export function AdminProductFormPage() {
           title={isEdit ? `Sửa: ${detail?.name || ''}` : 'Thêm sản phẩm mới'}
           sprint="Sprint 9D"
         />
-        <div className="ml-auto flex gap-2">
+        <div className="ml-auto flex items-center gap-2">
           {isEdit && (
-            <Button variant="outline" onClick={handleReembed} disabled={reembed.isPending}>
-              {reembed.isPending
-                ? <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                : <Sparkles className="mr-2 h-4 w-4" />}
-              Re-embed AI
-            </Button>
+            <span className="hidden items-center gap-1.5 rounded-md border border-primary/20 bg-primary/5 px-2.5 py-1.5 text-xs text-primary md:inline-flex">
+              <Sparkles className="h-3.5 w-3.5" />
+              Chatbot AI tự cập nhật sau vài giây khi bấm Lưu
+            </span>
           )}
           <Button variant="outline" onClick={() => handleSubmit('back')}
             disabled={create.isPending || update.isPending}>

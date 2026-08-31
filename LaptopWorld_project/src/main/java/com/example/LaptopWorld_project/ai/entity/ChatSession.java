@@ -16,9 +16,9 @@ import java.time.OffsetDateTime;
 @Table(name = "chat_sessions")
 public class ChatSession extends BaseEntity {
 
-    /** Null = guest session. */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
+    /** Chủ phiên — bắt buộc login. Bỏ hỗ trợ guest từ V33. */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @Column(length = 255)

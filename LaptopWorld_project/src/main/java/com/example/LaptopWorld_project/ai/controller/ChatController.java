@@ -12,13 +12,15 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "AI Chat", description = "Trợ lý AI tư vấn sản phẩm — RAG + Gemini")
+@Tag(name = "AI Chat", description = "Trợ lý AI tư vấn sản phẩm — RAG + Gemini (yêu cầu đăng nhập)")
 @RestController
 @RequestMapping("/api/ai/chat")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class ChatController {
 
     private final ChatService chatService;
@@ -33,14 +35,14 @@ public class ChatController {
         }
     }
 
-    @Operation(summary = "Tạo cuộc trò chuyện mới. Guest OK (không cần login).")
+    @Operation(summary = "Tạo cuộc trò chuyện mới (yêu cầu đăng nhập).")
     @PostMapping("/sessions")
     public ApiResponse<ChatSessionDto> createSession(
             @AuthenticationPrincipal UserPrincipal me,
             @Valid @RequestBody(required = false) CreateSessionRequest req) {
         String title = req == null ? null : req.title();
         return ApiResponse.ok("Đã tạo cuộc trò chuyện",
-                chatService.createSession(me != null ? me.getId() : null, title));
+                chatService.createSession(me.getId(), title));
     }
 
     @Operation(summary = "Gửi message trong session và nhận reply từ AI (RAG)")
@@ -50,8 +52,7 @@ public class ChatController {
             @PathVariable Long sessionId,
             @Valid @RequestBody SendMessageRequest req) {
         enforceRateLimit(sessionId);
-        return ApiResponse.ok(chatService.sendMessage(
-                sessionId, me != null ? me.getId() : null, req.message()));
+        return ApiResponse.ok(chatService.sendMessage(sessionId, me.getId(), req.message()));
     }
 
     @Operation(summary = "Xem toàn bộ lịch sử session")
@@ -59,18 +60,28 @@ public class ChatController {
     public ApiResponse<ChatSessionDto> getSession(
             @AuthenticationPrincipal UserPrincipal me,
             @PathVariable Long sessionId) {
-        return ApiResponse.ok(chatService.getSession(
-                sessionId, me != null ? me.getId() : null));
+        return ApiResponse.ok(chatService.getSession(sessionId, me.getId()));
     }
 
-    @Operation(summary = "Gửi message ở chế độ AGENT — Gemini tự gọi tools (search/compare/recommend/detail)")
+    @Operation(summary = "Gửi message ở chế độ AGENT — Gemini tự gọi tools (search/compare/recommend/detail/orders)")
     @PostMapping("/sessions/{sessionId}/agent-messages")
     public ApiResponse<ChatResponseDto> sendAgentMessage(
             @AuthenticationPrincipal UserPrincipal me,
             @PathVariable Long sessionId,
             @Valid @RequestBody SendMessageRequest req) {
         enforceRateLimit(sessionId);
-        return ApiResponse.ok(agentChatService.sendMessage(
-                sessionId, me != null ? me.getId() : null, req.message()));
+        return ApiResponse.ok(agentChatService.sendMessage(sessionId, me.getId(), req.message()));
     }
+
+    @Operation(summary = "Đánh giá 👍/👎 một câu trả lời của trợ lý (feedback: 1 = like, -1 = dislike, null = huỷ)")
+    @PostMapping("/messages/{messageId}/feedback")
+    public ApiResponse<Void> setFeedback(
+            @AuthenticationPrincipal UserPrincipal me,
+            @PathVariable Long messageId,
+            @RequestBody FeedbackRequest req) {
+        chatService.setFeedback(messageId, me.getId(), req.feedback());
+        return ApiResponse.message("Đã ghi nhận đánh giá");
+    }
+
+    public record FeedbackRequest(Short feedback) {}
 }

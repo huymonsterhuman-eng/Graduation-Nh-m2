@@ -14,7 +14,6 @@ import {
   BookmarkPlus,
   Images,
   Star,
-  Sparkles,
   MessageSquareText,
   Users,
   ShieldCheck,
@@ -89,8 +88,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     emoji: '🤖',
     title: 'AI',
     items: [
-      { to: '/admin/ai/embedding', label: 'Embedding', icon: Sparkles, requiredPermission: 'manage_ai_embedding' },
-      { to: '/admin/ai/chat', label: 'Chat sessions', icon: MessageSquareText, requiredPermission: 'manage_ai_embedding' },
+      { to: '/admin/ai/chat', label: 'Lịch sử chat', icon: MessageSquareText, requiredPermission: 'manage_ai_embedding' },
     ],
   },
   {

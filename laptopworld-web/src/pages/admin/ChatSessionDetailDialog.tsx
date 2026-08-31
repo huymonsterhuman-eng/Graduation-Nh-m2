@@ -1,8 +1,7 @@
-import { MessageSquareText, User, Bot, Wrench, Clock } from 'lucide-react'
+import { MessageSquareText, User, Bot, Wrench, Clock, ThumbsUp, ThumbsDown } from 'lucide-react'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAdminChatSessionDetail } from '@/hooks/api/useAdminChatSessions'
 import { formatChatTime, formatDateTime } from '@/lib/format'
@@ -28,15 +27,7 @@ export function ChatSessionDetailDialog({ sessionId, open, onOpenChange }: Props
           <DialogDescription className="text-xs">
             {data ? (
               <span className="flex flex-wrap gap-x-3 gap-y-1">
-                <span>
-                  {data.isGuest ? (
-                    <Badge variant="outline">Khách vãng lai</Badge>
-                  ) : (
-                    <span className="font-medium">
-                      {data.username} · {data.userEmail}
-                    </span>
-                  )}
-                </span>
+                <span className="font-medium">{data.username} · {data.userEmail}</span>
                 <span>·</span>
                 <span>Tạo lúc {formatDateTime(data.createdAt)}</span>
                 <span>·</span>
@@ -120,6 +111,18 @@ export function ChatSessionDetailDialog({ sessionId, open, onOpenChange }: Props
                         )}
                         {(m.tokensInput != null || m.tokensOutput != null) && (
                           <span>· {m.tokensInput ?? 0}↑ / {m.tokensOutput ?? 0}↓ tok</span>
+                        )}
+                        {m.feedback === 1 && (
+                          <span className="inline-flex items-center gap-0.5 rounded bg-emerald-500/20 px-1 py-0.5 font-semibold text-emerald-700 dark:text-emerald-300 opacity-100"
+                                title="Khách đánh giá hữu ích">
+                            <ThumbsUp className="h-2.5 w-2.5" /> Hữu ích
+                          </span>
+                        )}
+                        {m.feedback === -1 && (
+                          <span className="inline-flex items-center gap-0.5 rounded bg-rose-500/20 px-1 py-0.5 font-semibold text-rose-700 dark:text-rose-300 opacity-100"
+                                title="Khách phàn nàn — cần xem lại">
+                            <ThumbsDown className="h-2.5 w-2.5" /> Chưa tốt
+                          </span>
                         )}
                       </div>
                     </div>

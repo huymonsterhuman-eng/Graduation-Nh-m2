@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -123,6 +124,21 @@ public class ProductEmbeddingService {
         stats.put("dimensions", vec.length);
         stats.put("durationMs", durationMs);
         return stats;
+    }
+
+    /**
+     * Re-embed nền sau khi admin lưu SP — không chặn màn hình lưu.
+     * Nuốt mọi exception (log warn) để lỗi Gemini/network không làm hỏng flow save.
+     * Gọi từ ProductService.create/update — chỉ khi SP active và nội dung ảnh hưởng chatbot đã đổi.
+     */
+    @Async("aiTaskExecutor")
+    public void embedOneAsync(Long productId) {
+        try {
+            embedOne(productId);
+            log.info("Auto re-embed OK cho product id={}", productId);
+        } catch (Exception e) {
+            log.warn("Auto re-embed FAIL cho product id={}: {}", productId, e.getMessage());
+        }
     }
 
     /**

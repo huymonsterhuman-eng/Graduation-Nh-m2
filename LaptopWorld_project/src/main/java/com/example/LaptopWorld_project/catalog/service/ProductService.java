@@ -11,6 +11,7 @@ import com.example.LaptopWorld_project.catalog.mapper.ProductMapper;
 import com.example.LaptopWorld_project.catalog.repository.BrandRepository;
 import com.example.LaptopWorld_project.catalog.repository.CategoryRepository;
 import com.example.LaptopWorld_project.catalog.repository.ProductRepository;
+import com.example.LaptopWorld_project.ai.service.ProductEmbeddingService;
 import com.example.LaptopWorld_project.common.dto.PagedResponse;
 import com.example.LaptopWorld_project.common.exception.BusinessException;
 import com.example.LaptopWorld_project.common.exception.ResourceNotFoundException;
@@ -47,6 +48,7 @@ public class ProductService {
     private final OrderDetailRepository orderDetailRepository;
     private final GoodsReceiptDetailRepository goodsReceiptDetailRepository;
     private final GoodsIssueDetailRepository goodsIssueDetailRepository;
+    private final ProductEmbeddingService productEmbeddingService;
 
     @PersistenceContext
     private EntityManager em;
@@ -271,6 +273,11 @@ public class ProductService {
         Product entity = new Product();
         applyRequest(entity, req, slug);
         productRepository.save(entity);
+
+        // Auto re-embed nền — bot biết SP mới sau vài giây (chỉ khi active).
+        if (entity.isActive()) {
+            productEmbeddingService.embedOneAsync(entity.getId());
+        }
         return productMapper.toDetail(entity);
     }
 
@@ -288,10 +295,43 @@ public class ProductService {
         }
         validateSalePrice(req);
 
+        // Snapshot các field ảnh hưởng chatbot (embed text) trước khi apply — dùng để so sánh
+        // sau save. Nếu không đổi thì bỏ qua re-embed, tiết kiệm quota Gemini.
+        String prevEmbedText = productEmbedSignature(entity);
+        boolean prevActive = entity.isActive();
+
         applyRequest(entity, req, slug);
         productRepository.save(entity);
+
+        String nextEmbedText = productEmbedSignature(entity);
+        boolean nextActive = entity.isActive();
+        boolean contentChanged = !prevEmbedText.equals(nextEmbedText);
+        boolean justActivated = !prevActive && nextActive;
+
+        if (nextActive && (contentChanged || justActivated)) {
+            productEmbeddingService.embedOneAsync(entity.getId());
+        }
         return productMapper.toDetail(entity);
     }
+
+    /**
+     * Signature gộp các field mà ProductEmbeddingService.buildEmbedText đang dùng.
+     * Đổi bất kỳ field nào ở đây → cần re-embed để chatbot biết thông tin mới.
+     */
+    private String productEmbedSignature(Product p) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(nz(p.getName())).append('|');
+        sb.append(nz(p.getShortDescription())).append('|');
+        sb.append(nz(p.getDescription())).append('|');
+        sb.append(p.getBrand() != null ? p.getBrand().getId() : "").append('|');
+        sb.append(p.getCategory() != null ? p.getCategory().getId() : "").append('|');
+        sb.append(p.getPrice() != null ? p.getPrice().stripTrailingZeros().toPlainString() : "").append('|');
+        sb.append(p.getSalePrice() != null ? p.getSalePrice().stripTrailingZeros().toPlainString() : "").append('|');
+        sb.append(p.getSpecs() != null ? p.getSpecs().toString() : "");
+        return sb.toString();
+    }
+
+    private static String nz(String s) { return s == null ? "" : s; }
 
     @Transactional
     public void delete(Long id) {

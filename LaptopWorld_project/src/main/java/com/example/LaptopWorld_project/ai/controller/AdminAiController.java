@@ -1,5 +1,6 @@
 package com.example.LaptopWorld_project.ai.controller;
 
+import com.example.LaptopWorld_project.ai.service.ChatCleanupService;
 import com.example.LaptopWorld_project.ai.service.EmbeddingService;
 import com.example.LaptopWorld_project.ai.service.ProductEmbeddingService;
 import com.example.LaptopWorld_project.common.dto.ApiResponse;
@@ -20,6 +21,7 @@ public class AdminAiController {
 
     private final ProductEmbeddingService productEmbeddingService;
     private final EmbeddingService embeddingService;
+    private final ChatCleanupService chatCleanupService;
 
     @Operation(summary = "Stats embedding: bao nhiêu SP đã embed / còn pending")
     @GetMapping("/embedding-stats")
@@ -53,5 +55,20 @@ public class AdminAiController {
     public ApiResponse<Void> clearQueryCache() {
         embeddingService.clearCache();
         return ApiResponse.message("Đã xoá cache embedding query");
+    }
+
+    @Operation(summary = "Chạy dọn phiên chat guest cũ ngay lập tức (không đợi lịch Chủ nhật). "
+            + "Số liệu ngày sắp xoá được gộp vào bảng chat_stats_daily trước khi xoá.")
+    @PostMapping("/chat-cleanup/run-now")
+    public ApiResponse<Map<String, Object>> runChatCleanup() {
+        return ApiResponse.ok("Đã dọn xong", chatCleanupService.runCleanup());
+    }
+
+    @Operation(summary = "Thống kê chat N ngày gần nhất (mặc định 30) — dùng cho dashboard admin. "
+            + "Kết hợp số liệu aggregate cũ + query live để không mất dữ liệu khi phiên đã bị dọn.")
+    @GetMapping("/chat-stats")
+    public ApiResponse<Map<String, Object>> chatStats(
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "30") int days) {
+        return ApiResponse.ok(chatCleanupService.getRecentStats(days));
     }
 }
